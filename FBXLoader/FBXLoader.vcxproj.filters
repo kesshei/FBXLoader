@@ -26,5 +26,8 @@
     <ClInclude Include="FBXModel.h">
       <Filter>源文件</Filter>
     </ClInclude>
+    <ClInclude Include="ModelData.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

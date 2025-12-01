@@ -22,6 +22,11 @@ bool FBXModel::Load(const char* modelFile)
 	{
 		return false;
 	}
+	result = ConvertToStandardScene(l_FbxManager, l_Scene);
+	if (!result)
+	{
+		return false;
+	}
 	//开始准备解析模型资源
 
 
@@ -226,4 +231,101 @@ bool FBXModel::LoadScene(FbxManager* pManager, FbxDocument* pScene, const char* 
 	return lStatus;
 
 
+}
+
+bool FBXModel::ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene)
+{
+	// Convert Axis System to what is used in this example, if needed
+	FbxAxisSystem SceneAxisSystem = pScene->GetGlobalSettings().GetAxisSystem();
+	FbxAxisSystem OurAxisSystem(FbxAxisSystem::eYAxis, FbxAxisSystem::eParityOdd, FbxAxisSystem::eRightHanded);
+	if (SceneAxisSystem != OurAxisSystem)
+	{
+		OurAxisSystem.ConvertScene(pScene);
+	}
+
+	// Convert Unit System to what is used in this example, if needed
+	FbxSystemUnit SceneSystemUnit = pScene->GetGlobalSettings().GetSystemUnit();
+	if (SceneSystemUnit.GetScaleFactor() != 1.0)
+	{
+		//The unit in this example is centimeter.
+		FbxSystemUnit::cm.ConvertScene(pScene);
+	}
+	// Convert mesh, NURBS and patch into triangle mesh
+	FbxGeometryConverter lGeomConverter(pManager);
+	try {
+		lGeomConverter.Triangulate(pScene, /*replace*/true);
+	}
+	catch (std::runtime_error) {
+		FBXSDK_printf("Scene integrity verification failed.\n");
+		return false;
+	}
+	return true;
+}
+
+bool FBXModel::FetchScene(FbxScene* pScene)
+{
+	int i;
+	FbxNode* lNode = pScene->GetRootNode();
+
+	if (lNode)
+	{
+		for (i = 0; i < lNode->GetChildCount(); i++)
+		{
+			FbxNode* pNode = lNode->GetChild(i);
+			FbxNodeAttribute* pNodeAttribute = pNode->GetNodeAttribute();
+			if (pNodeAttribute != NULL)
+			{
+				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
+				switch (lAttributeType)
+				{
+				case FbxNodeAttribute::eSkeleton:
+					FetchSkeleton(pNode, pNodeAttribute);
+					break;
+
+				case FbxNodeAttribute::eMesh:
+					FetchMesh(pNode, pNodeAttribute);
+					break;
+
+					//case FbxNodeAttribute::eMarker:
+					//	DisplayMarker(pNode);
+					//	break;
+
+					//case FbxNodeAttribute::eNurbs:
+					//	DisplayNurb(pNode);
+					//	break;
+
+					//case FbxNodeAttribute::ePatch:
+					//	DisplayPatch(pNode);
+					//	break;
+
+					//case FbxNodeAttribute::eCamera:
+					//	DisplayCamera(pNode);
+					//	break;
+
+					//case FbxNodeAttribute::eLight:
+					//	DisplayLight(pNode);
+					//	break;
+
+					//case FbxNodeAttribute::eLODGroup:
+					//	DisplayLodGroup(pNode);
+					//	break;
+				default:
+					break;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
+{
+	FbxSkeleton* lSkeleton = (FbxSkeleton*)pNode->GetNodeAttribute();
+	const char* lName = pNode->GetName();
+	return false;
+}
+
+bool FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
+{
+	return false;
 }
