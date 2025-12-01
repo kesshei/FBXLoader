@@ -22,8 +22,11 @@ bool FBXModel::Load(const char* modelFile)
 	{
 		return false;
 	}
+	//开始准备解析模型资源
 
-	l_FbxManager->Destroy();
+
+
+	DestroySdkObjects(l_FbxManager);
 	return true;
 }
 
