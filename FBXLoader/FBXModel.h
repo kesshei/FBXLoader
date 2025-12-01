@@ -2,6 +2,7 @@
 #define _FBXModel_h_
 #include <fbxsdk.h>
 
+
 //FBX Ä£ÐÍ
 class FBXModel
 {
@@ -10,8 +11,9 @@ public:
 	~FBXModel();
 	bool Load(const char* modelFile);
 private:
-	bool InitFBXSDK(FbxManager*& pManager, FbxScene*& pScene);
-	bool LoadScene(FbxManager* pManager, FbxScene* pScene, const char* modelFile);
+	bool InitializeSdkObjects(FbxManager*& pManager, FbxScene*& pScene);
+	bool DestroySdkObjects(FbxManager* pManager);
+	bool LoadScene(FbxManager* pManager, FbxDocument* pScene, const char* modelFile);
 private:
 	
 };
