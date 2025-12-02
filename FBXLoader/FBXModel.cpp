@@ -263,10 +263,10 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
 				switch (lAttributeType)
 				{
-				case FbxNodeAttribute::eSkeleton: {
-					LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
-					frameList.push_back(frame);
-				}break;
+				//case FbxNodeAttribute::eSkeleton: {
+				//	LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
+				//	frameList.push_back(frame);
+				//}break;
 				case FbxNodeAttribute::eMesh:
 					FetchMesh(pNode, pNodeAttribute);
 					break;
@@ -434,5 +434,120 @@ FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute
 
 bool FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 {
+	FbxMesh* pFbxMesh = (FbxMesh*)pNode->GetNodeAttribute();
+	if (!pFbxMesh->IsTriangleMesh()) {
+		FbxGeometryConverter converter(pFbxMesh->GetFbxManager());
+		converter.Triangulate(pFbxMesh, true); // 强制三角化
+	}
+	const int uvCount = pFbxMesh->GetElementUVCount();
+	// 1. 获取 FBX Mesh 的基础信息
+	const int numVertices = pFbxMesh->GetControlPointsCount(); // 控制点数量（顶点数）
+	const int numPolygons = pFbxMesh->GetPolygonCount();       // 面数量（每个面默认是三角形，需确保 FBX 已三角化）
+	// 2. 检查 FBX Mesh 是否三角化（未三角化则强制三角化）
+
+	// 3. 提取顶点数据（位置、UV、法线）
+	FbxVector4* pFbxVertices = pFbxMesh->GetControlPoints(); // FBX 顶点位置（右手坐标系）
+	FbxGeometryElement::EMappingMode normalMappingMode = pFbxMesh->GetElementNormal(0)->GetMappingMode();
+	FbxGeometryElement::EMappingMode uvMappingMode = pFbxMesh->GetElementUV(0)->GetMappingMode();
+	FbxLayerElementArrayTemplate<int>* materialIndice = &pFbxMesh->GetElementMaterial()->GetIndexArray();
+
+	const FbxVector4* controlPoints = pFbxMesh->GetControlPoints();
+	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);;
+	const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(0);
+	FbxVector4 currentVertex;
+	FbxVector4 currentNormal;
+	FbxVector2 currentUV;
+	MATRIX geometryTransformMatrix;
+	
+	FbxNode* node = pFbxMesh->GetNode();
+	int materialCount = node->GetMaterialCount();
+
+	for (int m = 0; m < materialCount; ++m) {
+		FbxSurfaceMaterial* material = node->GetMaterial(m);
+
+		// 常见的标准材质类型
+		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
+			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;
+			// 可访问 Diffuse、Specular 等属性
+			FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+			int textureCount = prop.GetSrcObjectCount<FbxTexture>();
+
+			for (int t = 0; t < textureCount; ++t) {
+				FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
+				if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
+					FbxFileTexture* fileTex = (FbxFileTexture*)texture;
+					// 获取贴图文件路径
+					const char* texPath = fileTex->GetFileName();
+					printf("Diffuse Texture: %s\n", texPath);
+				}
+			}
+		}
+	}
+
+
+	std::vector<DWORD> indices;
+	// 遍历每个面，提取 3 个顶点索引
+	for (int polyIdx = 0; polyIdx < numPolygons; polyIdx++) {
+
+		// 提取当前面的 3 个顶点索引
+		DWORD idx0 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 0);
+		DWORD idx1 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 1);
+		DWORD idx2 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 2);
+		 
+		FbxVector4 v0 = pFbxMesh->GetControlPointAt(0);
+		FbxVector4 v1 = pFbxMesh->GetControlPointAt(1);
+		FbxVector4 v2 = pFbxMesh->GetControlPointAt(2);
+
+		FbxVector4 edge1 = v1 - v0;
+		FbxVector4 edge2 = v2 - v0;
+		FbxVector4 normal = edge1.CrossProduct(edge2);
+
+		// 判断绕序（此为YZ平面举例）
+		if (normal[2] > 0) {
+			printf("逆时针 CCW\n");
+		}
+		else {
+			printf("顺时针 CW\n");
+		}
+
+		// 5. 存入修正后的索引
+		indices.push_back(idx0);
+		indices.push_back(idx2);
+		indices.push_back(idx1);
+	}
+
+	for (int index = 0; index < numVertices; index++)
+	{
+		FbxVector4 currentVertex = controlPoints[index];
+		VECTOR dxVertex = VECTOR(
+			static_cast<float>(currentVertex[0]),
+			static_cast<float>(currentVertex[1]),
+			static_cast<float>(currentVertex[2]));
+
+		long lNormalIndex = index;
+
+		if (lNormalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+		{
+			lNormalIndex = lNormalElement->GetIndexArray().GetAt(index);
+		}
+
+		currentNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
+		VECTOR dxNormal = VECTOR(
+			static_cast<float>(currentNormal[0]),
+			static_cast<float>(currentNormal[1]),
+			static_cast<float>(currentNormal[2]));
+
+		long uvIndex = index;
+
+		if (lUVElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+		{
+			uvIndex = lUVElement->GetIndexArray().GetAt(index);
+		}
+
+		currentUV = lUVElement->GetDirectArray().GetAt(uvIndex);
+		float u = static_cast<float>(currentUV[0]);
+		float v = 1 - static_cast<float>(currentUV[1]);
+	}
+
 	return false;
 }
