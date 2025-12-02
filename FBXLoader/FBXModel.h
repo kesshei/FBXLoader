@@ -1,6 +1,7 @@
 #ifndef _FBXModel_h_
 #define _FBXModel_h_
 #include <fbxsdk.h>
+#include "ModelData.h"
 
 //FBX Ä£ÐÍ
 class FBXModel
@@ -17,6 +18,7 @@ private:
 private:
 	bool FetchScene(FbxScene* pScene);
 	bool FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
+	FRAME* FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, int parentIndex);
 	bool FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
 };
 

@@ -75,22 +75,6 @@ bool FBXModel::DestroySdkObjects(FbxManager* pManager)
 
 bool FBXModel::LoadScene(FbxManager* pManager, FbxDocument* pScene, const char* modelFile)
 {
-	// Create an importer using the SDK manager.
-	FbxImporter* lImporter = FbxImporter::Create(pManager, "");
-
-	// Use the first argument as the filename for the importer.
-	bool result = lImporter->Initialize(modelFile, -1, pManager->GetIOSettings());
-	if (result)
-	{
-		// Import the contents of the file into the scene.
-		lImporter->Import(pScene);
-		result = true;
-	}
-	// The file is imported; so get rid of the importer.
-	lImporter->Destroy();
-	return result;
-
-
 	int lFileMajor, lFileMinor, lFileRevision;
 	int lSDKMajor, lSDKMinor, lSDKRevision;
 	//int lFileFormat = -1;
@@ -317,12 +301,67 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 	}
 	return true;
 }
-
+MATRIX FbxMatrixToD3DXMatrix(const FbxAMatrix& fbxMat) {
+	MATRIX d3dMat;
+	for (int row = 0; row < 4; row++) {
+		for (int col = 0; col < 4; col++) {
+			// FBX 列优先 → D3DX 行优先：d3dMat._rc = fbxMat.m[col][row]
+			d3dMat.m[row][col] = (float)fbxMat.Get(col, row);
+		}
+	}
+	return d3dMat;
+}
 bool FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 {
+
+	//LPFRAME frame = FetchSkeletons(pNode, pNodeAttribute, -1);
+
+	return false;
+}
+
+FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, int parentIndex)
+{
+	LPFRAME pFrame = NULL, pParentFrame=NULL, pTempFrame = NULL, FrameRoot = NULL;
 	FbxSkeleton* lSkeleton = (FbxSkeleton*)pNode->GetNodeAttribute();
 	const char* lName = pNode->GetName();
-	return false;
+
+	FbxAMatrix lGlobal, lLocal;
+	lGlobal = pNode->EvaluateGlobalTransform();
+	lLocal = pNode->EvaluateLocalTransform();
+
+	pFrame = new FRAME;
+	memset(pFrame, 0, sizeof(FRAME));
+	pFrame->Name = lName;
+	pFrame->TransformationMatrix = FbxMatrixToD3DXMatrix(lLocal);
+
+	if (pParentFrame == NULL)
+	{
+		pTempFrame = pFrame;
+		FrameRoot = pFrame;
+		pFrame->pFrameSibling = pTempFrame;
+		pParentFrame = pFrame;
+	}
+	else
+	{
+		pTempFrame = pParentFrame->pFrameFirstChild;
+		pParentFrame->pFrameFirstChild = pFrame;
+		pFrame->pFrameSibling = pTempFrame;
+	}
+	parentIndex += 1;
+	if (pNode->GetChildCount() > 0)
+	{
+
+
+	}
+	for (int i = 0; i < pNode->GetChildCount(); i++)
+	{
+		FbxNode* pChildNode = pNode->GetChild(i);
+		pFrame = FetchSkeletons(pChildNode, pChildNode->GetNodeAttribute(), parentIndex);
+		pTempFrame = pParentFrame->pFrameFirstChild;
+		pParentFrame->pFrameFirstChild = pFrame;
+		pFrame->pFrameSibling = pTempFrame;
+	}
+	return pFrame;
 }
 
 bool FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
