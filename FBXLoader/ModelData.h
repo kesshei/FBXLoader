@@ -41,6 +41,23 @@ struct MATRIX {
         _31(m31), _32(m32), _33(m33), _34(m34),
         _41(m41), _42(m42), _43(m43), _44(m44) {
     }
+    // 核心：重载 operator()，支持 matrix(row, col) 读写访问
+   // 参数：row = 行索引（0-3），col = 列索引（0-3）
+    float& operator()(int row, int col) {
+        // 边界检查（可选，避免越界访问）
+        if (row < 0 || row >= 4 || col < 0 || col >= 4) {
+            throw std::out_of_range("MATRIX 索引越界！row 和 col 必须在 0-3 之间");
+        }
+        return m[row][col]; // 行优先：m[行][列] 对应 _(row+1)(col+1)
+    }
+
+    // 重载 const 版本（用于 const MATRIX 对象的只读访问）
+    const float& operator()(int row, int col) const {
+        if (row < 0 || row >= 4 || col < 0 || col >= 4) {
+            throw std::out_of_range("MATRIX 索引越界！row 和 col 必须在 0-3 之间");
+        }
+        return m[row][col];
+    }
 };
 typedef struct _COLORVALUE {
     float r;
@@ -95,8 +112,8 @@ typedef struct _FRAME
     const char*       Name;
     MATRIX		      TransformationMatrix;
     LPMESHCONTAINER	  pMeshContainer;
-    struct _FRAME*    pFrameSibling;
-    struct _FRAME*    pFrameFirstChild;
+    struct _FRAME*    pFrameSibling;//兄弟节点指向下一个
+    struct _FRAME*    pFrameFirstChild;//指向第一个子节点
     MATRIX	          ParentTM;
     MATRIX	          NodeTMInverse;
     int               BoneIndex;

@@ -22,13 +22,13 @@ bool FBXModel::Load(const char* modelFile)
 	{
 		return false;
 	}
-	result = ConvertToStandardScene(l_FbxManager, l_Scene);
-	if (!result)
-	{
-		return false;
-	}
+	//result = ConvertToStandardScene(l_FbxManager, l_Scene);
+	//if (!result)
+	//{
+	//	return false;
+	//}
 	//开始准备解析模型资源
-
+	result = FetchScene(l_Scene);
 
 
 	DestroySdkObjects(l_FbxManager);
@@ -250,7 +250,8 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 {
 	int i;
 	FbxNode* lNode = pScene->GetRootNode();
-
+	FbxAnimEvaluator* FbxAnim = pScene->GetAnimationEvaluator();
+	std::vector<LPFRAME> frameList;
 	if (lNode)
 	{
 		for (i = 0; i < lNode->GetChildCount(); i++)
@@ -262,10 +263,10 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
 				switch (lAttributeType)
 				{
-				case FbxNodeAttribute::eSkeleton:
-					FetchSkeleton(pNode, pNodeAttribute);
-					break;
-
+				case FbxNodeAttribute::eSkeleton: {
+					LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
+					frameList.push_back(frame);
+				}break;
 				case FbxNodeAttribute::eMesh:
 					FetchMesh(pNode, pNodeAttribute);
 					break;
@@ -301,6 +302,19 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 	}
 	return true;
 }
+
+MATRIX _fbxToMatrix(const FbxAMatrix& fbxMatrix)
+{
+	MATRIX matrix = MATRIX();
+	for (unsigned long i = 0; i < 4; ++i)
+	{
+		matrix(i, 0) = (float)fbxMatrix.Get(i, 0);
+		matrix(i, 1) = (float)fbxMatrix.Get(i, 1);
+		matrix(i, 2) = (float)fbxMatrix.Get(i, 2);
+		matrix(i, 3) = (float)fbxMatrix.Get(i, 3);
+	}
+	return matrix;
+}
 MATRIX FbxMatrixToD3DXMatrix(const FbxAMatrix& fbxMat) {
 	MATRIX d3dMat;
 	for (int row = 0; row < 4; row++) {
@@ -311,55 +325,109 @@ MATRIX FbxMatrixToD3DXMatrix(const FbxAMatrix& fbxMat) {
 	}
 	return d3dMat;
 }
-bool FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
-{
+// 递归打印骨骼树形结构（核心函数）
+// 参数说明：
+// pFrame：当前要打印的骨骼帧
+// prefix：当前层级的缩进前缀（控制树形格式）
+// isLastSibling：当前骨骼是否是同级最后一个兄弟（决定用 └─ 还是 ├─）
+void PrintBoneTree(FRAME* pFrame, const std::string& prefix, bool isLastSibling) {
+	if (!pFrame) return;
 
-	//LPFRAME frame = FetchSkeletons(pNode, pNodeAttribute, -1);
+	// 1. 只打印实际骨骼（bIsBone = true），跳过虚拟根帧（若有）
+	if (pFrame) {
+		// 打印当前骨骼：前缀 + 分支符号（├─ 或 └─） + 骨骼名称 + 索引
+		std::cout << prefix;
+		if (isLastSibling) {
+			std::cout << "└─ "; // 最后一个兄弟，用 └─ 结尾
+		}
+		else {
+			std::cout << "├─ "; // 非最后一个兄弟，用 ├─ 结尾
+		}
+		std::cout << pFrame->Name << " (索引：" << pFrame->BoneIndex << ")" << " (X:" << pFrame->TransformationMatrix._41 << ", Y:" << pFrame->TransformationMatrix._42 << ", Z:" << pFrame->TransformationMatrix._43 << ")" << std::endl;
+	}
 
-	return false;
+	// 2. 处理子骨骼（pFrameFirstChild）：递归深入下一层
+	FRAME* pChild = (FRAME*)pFrame->pFrameFirstChild;
+	if (pChild) {
+		// 构建子骨骼的前缀：
+		// - 若当前是最后一个兄弟：前缀 + "   "（不显示竖线）
+		// - 若不是最后一个兄弟：前缀 + "│  "（显示竖线，保持层级对齐）
+		std::string childPrefix = prefix + (isLastSibling ? "   " : "│  ");
+		// 递归打印子骨骼，先判断子骨骼是否有兄弟（这里先处理第一个子骨骼）
+		PrintBoneTree(pChild, childPrefix, !pChild->pFrameSibling);
+	}
+
+	// 3. 处理兄弟骨骼（pFrameSibling）：递归遍历同一层
+	FRAME* pSibling = (FRAME*)pFrame->pFrameSibling;
+	if (pSibling) {
+		// 兄弟骨骼的前缀和当前骨骼一致（同一层级）
+		PrintBoneTree(pSibling, prefix, !pSibling->pFrameSibling);
+	}
 }
 
-FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, int parentIndex)
+// 入口函数：从根骨骼开始打印整个树
+void PrintBoneTreeRoot(FRAME* pRootFrame) {
+	// 关键：设置输出格式为「固定小数位 + 保留 2 位」
+	std::cout << std::fixed << std::setprecision(2);
+	if (!pRootFrame) {
+		std::cerr << "根骨骼帧为空！" << std::endl;
+		return;
+	}
+
+	std::cout << "=== BIP 骨骼树形结构 ===" << std::endl;
+	// 根骨骼的前缀为空，且根骨骼无兄弟（isLastSibling = true）
+	PrintBoneTree(pRootFrame, "", true);
+	// （可选）恢复默认输出格式（避免影响后续 cout）
+	std::cout.unsetf(std::ios::fixed);
+	std::cout.precision(6); // C++ 默认精度
+}
+
+FRAME* FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim)
 {
-	LPFRAME pFrame = NULL, pParentFrame=NULL, pTempFrame = NULL, FrameRoot = NULL;
+	LPFRAME frame = FetchSkeletons(pNode, pNodeAttribute, FbxAnim, -1);
+	PrintBoneTreeRoot(frame);
+	return frame;
+}
+
+FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex)
+{
+	LPFRAME pFrame = NULL, pParentFrame = NULL, pTempFrame = NULL, FrameRoot = NULL;
 	FbxSkeleton* lSkeleton = (FbxSkeleton*)pNode->GetNodeAttribute();
 	const char* lName = pNode->GetName();
 
 	FbxAMatrix lGlobal, lLocal;
+	FbxAMatrix fbxMatrix = FbxAnim->GetNodeLocalTransform(pNode);
 	lGlobal = pNode->EvaluateGlobalTransform();
 	lLocal = pNode->EvaluateLocalTransform();
+	FbxDouble3 translation = pNode->LclTranslation.Get();
+	FbxDouble3 rotation = pNode->LclRotation.Get();
+	FbxDouble3 scaling = pNode->LclScaling.Get();
 
 	pFrame = new FRAME;
 	memset(pFrame, 0, sizeof(FRAME));
 	pFrame->Name = lName;
-	pFrame->TransformationMatrix = FbxMatrixToD3DXMatrix(lLocal);
+	pFrame->TransformationMatrix = _fbxToMatrix(lLocal);
+	pFrame->BoneIndex = parentIndex + 1;
 
-	if (pParentFrame == NULL)
-	{
-		pTempFrame = pFrame;
-		FrameRoot = pFrame;
-		pFrame->pFrameSibling = pTempFrame;
-		pParentFrame = pFrame;
-	}
-	else
-	{
-		pTempFrame = pParentFrame->pFrameFirstChild;
-		pParentFrame->pFrameFirstChild = pFrame;
-		pFrame->pFrameSibling = pTempFrame;
-	}
-	parentIndex += 1;
 	if (pNode->GetChildCount() > 0)
 	{
-
-
-	}
-	for (int i = 0; i < pNode->GetChildCount(); i++)
-	{
-		FbxNode* pChildNode = pNode->GetChild(i);
-		pFrame = FetchSkeletons(pChildNode, pChildNode->GetNodeAttribute(), parentIndex);
-		pTempFrame = pParentFrame->pFrameFirstChild;
-		pParentFrame->pFrameFirstChild = pFrame;
-		pFrame->pFrameSibling = pTempFrame;
+		parentIndex += 1;
+		for (int i = 0; i < pNode->GetChildCount(); i++)
+		{
+			FbxNode* pChildNode = pNode->GetChild(i);
+			LPFRAME frameChild = FetchSkeletons(pChildNode, pChildNode->GetNodeAttribute(), FbxAnim, parentIndex);
+			if (pFrame->pFrameFirstChild == NULL)
+			{
+				pFrame->pFrameFirstChild = frameChild;
+				pParentFrame = frameChild;
+			}
+			else
+			{
+				pTempFrame = pParentFrame;
+				pTempFrame->pFrameSibling = frameChild;
+				pParentFrame = frameChild;
+			}
+		}
 	}
 	return pFrame;
 }

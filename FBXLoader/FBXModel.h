@@ -2,6 +2,10 @@
 #define _FBXModel_h_
 #include <fbxsdk.h>
 #include "ModelData.h"
+#include <iostream>
+#include <string>
+#include <iomanip> // 用于格式化浮点数输出（保留 2 位小数）
+
 
 //FBX 模型
 class FBXModel
@@ -17,8 +21,8 @@ private:
 	bool ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene);
 private:
 	bool FetchScene(FbxScene* pScene);
-	bool FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
-	FRAME* FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, int parentIndex);
+	FRAME* FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim);
+	FRAME* FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex);
 	bool FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
 };
 
