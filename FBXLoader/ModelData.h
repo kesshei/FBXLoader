@@ -1,4 +1,5 @@
 #include <vector>
+#include <map>
 #ifndef _ModelData_h_
 #define _ModelData_h_
 
@@ -7,6 +8,7 @@ typedef int                 BOOL;
 typedef unsigned char       BYTE;
 typedef unsigned short      WORD;
 typedef float               FLOAT;
+typedef DWORD* PDWORD;
 
 // 手动实现 XMATRIX（4x4 行优先矩阵）
 struct MATRIX {
@@ -64,6 +66,19 @@ typedef struct _COLORVALUE {
 	float g;
 	float b;
 	float a;
+	// 1. 默认构造函数：初始化为黑色不透明（r=0, g=0, b=0, a=1）
+	_COLORVALUE() : r(0.0f), g(0.0f), b(0.0f), a(1.0f) {}
+
+	// 2. 三参数构造函数：指定 RGB（Alpha 默认为 1.0）
+	_COLORVALUE(float red, float green, float blue)
+		: r(red), g(green), b(blue), a(1.0f) {
+	}
+
+	// 3. 四参数构造函数：指定 RGBA 全通道
+	_COLORVALUE(float red, float green, float blue, float alpha)
+		: r(red), g(green), b(blue), a(alpha) {
+	}
+
 } COLORVALUE;
 
 typedef struct _VECTOR {
@@ -74,20 +89,14 @@ typedef struct _VECTOR {
 	float z;
 } VECTOR;
 
-typedef struct MATERIAL {
+typedef struct _MATERIALInfo {
 	COLORVALUE   Diffuse;        /* Diffuse color RGBA */
 	COLORVALUE   Ambient;        /* Ambient color RGB */
 	COLORVALUE   Specular;       /* Specular 'shininess' */
 	COLORVALUE   Emissive;       /* Emissive color RGB */
-	float           Power;          /* Sharpness if specular highlight */
-} MATERIAL;
-
-typedef struct _Material
-{
-	MATERIAL     MatD3D;
-	const char* pTexture;
-	int		     TextureIndex1;
-}Material;
+	float        Power;       /* Sharpness if specular highlight */
+	float        Opacity;       /* Transparency factor */
+} MATERIALInfo;
 
 typedef struct _Vertex
 {
@@ -96,17 +105,35 @@ typedef struct _Vertex
 	float nx, ny, nz;
 }Vertex;
 
+typedef struct _Influence
+{
+	int count;
+	std::vector<uint32_t> Vertices;
+	std::vector<float> Weights;
+}Influence;
+
+typedef struct _Material
+{
+	MATERIALInfo  MatD3D;
+	const char*   pTexture;
+}Material;
+
 typedef struct _MESH
 {
+	const char* Name;
+	int VertexCount;
+	int FaceCount;
 	std::vector<Vertex> Vertices;
-	std::vector<DWORD> Indices;
-	std::vector<DWORD> Attributes;
+	std::vector<DWORD>  Indices;
+	//std::vector<DWORD>  Attributes;
+	std::vector<Material>   MatD3Ds;
+	std::map<const char*, Influence> Influences;
 }MESH, * LPMESH;
 
 typedef struct _MESHCONTAINER
 {
-	const char* Name;
-	MESH				    pOrigMesh;
+	const char*  Name;
+	MESH		 pOrigMesh;
 }MESHCONTAINER, * LPMESHCONTAINER;
 
 typedef struct _FRAME
@@ -114,13 +141,15 @@ typedef struct _FRAME
 	const char* Name;
 	MATRIX		      TransformationMatrix;
 	LPMESHCONTAINER	  pMeshContainer;
-	struct _FRAME* pFrameSibling;//兄弟节点指向下一个
-	struct _FRAME* pFrameFirstChild;//指向第一个子节点
+	struct _FRAME*    pFrameSibling;   //兄弟节点指向下一个
+	struct _FRAME*    pFrameFirstChild;//指向第一个子节点
 	MATRIX	          ParentTM;
 	MATRIX	          NodeTMInverse;
 	int               BoneIndex;
-	Material	      pMaterial;
+	int               ParentBoneIndex;
+	//Material	      pMaterial;
 	WORD              MaterialID;
 }FRAME, * LPFRAME;
+
 
 #endif //_ModelData_h_

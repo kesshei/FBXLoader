@@ -263,37 +263,39 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
 				switch (lAttributeType)
 				{
-				//case FbxNodeAttribute::eSkeleton: {
-				//	LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
-				//	frameList.push_back(frame);
-				//}break;
+					//case FbxNodeAttribute::eSkeleton: {
+					//	LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
+					//	frameList.push_back(frame);
+					//}break;
 				case FbxNodeAttribute::eMesh:
-					FetchMesh(pNode, pNodeAttribute);
-					break;
+				{
+					LPMESH mesh = FetchMesh(pNode, pNodeAttribute);
+				}
+				break;
 
-					//case FbxNodeAttribute::eMarker:
-					//	DisplayMarker(pNode);
-					//	break;
+				//case FbxNodeAttribute::eMarker:
+				//	DisplayMarker(pNode);
+				//	break;
 
-					//case FbxNodeAttribute::eNurbs:
-					//	DisplayNurb(pNode);
-					//	break;
+				//case FbxNodeAttribute::eNurbs:
+				//	DisplayNurb(pNode);
+				//	break;
 
-					//case FbxNodeAttribute::ePatch:
-					//	DisplayPatch(pNode);
-					//	break;
+				//case FbxNodeAttribute::ePatch:
+				//	DisplayPatch(pNode);
+				//	break;
 
-					//case FbxNodeAttribute::eCamera:
-					//	DisplayCamera(pNode);
-					//	break;
+				//case FbxNodeAttribute::eCamera:
+				//	DisplayCamera(pNode);
+				//	break;
 
-					//case FbxNodeAttribute::eLight:
-					//	DisplayLight(pNode);
-					//	break;
+				//case FbxNodeAttribute::eLight:
+				//	DisplayLight(pNode);
+				//	break;
 
-					//case FbxNodeAttribute::eLODGroup:
-					//	DisplayLodGroup(pNode);
-					//	break;
+				//case FbxNodeAttribute::eLODGroup:
+				//	DisplayLodGroup(pNode);
+				//	break;
 				default:
 					break;
 				}
@@ -382,14 +384,15 @@ void PrintBoneTreeRoot(FRAME* pRootFrame) {
 	std::cout.precision(6); // C++ 默认精度
 }
 
-FRAME* FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim)
+LPFRAME FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim)
 {
-	LPFRAME frame = FetchSkeletons(pNode, pNodeAttribute, FbxAnim, -1);
+	int number = -1;
+	LPFRAME frame = FetchSkeletons(pNode, pNodeAttribute, FbxAnim, -1, number);
 	PrintBoneTreeRoot(frame);
 	return frame;
 }
 
-FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex)
+LPFRAME FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex, int& boneIndex)
 {
 	LPFRAME pFrame = NULL, pParentFrame = NULL, pTempFrame = NULL, FrameRoot = NULL;
 	FbxSkeleton* lSkeleton = (FbxSkeleton*)pNode->GetNodeAttribute();
@@ -403,11 +406,13 @@ FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute
 	FbxDouble3 rotation = pNode->LclRotation.Get();
 	FbxDouble3 scaling = pNode->LclScaling.Get();
 
+	boneIndex += 1;
 	pFrame = new FRAME;
 	memset(pFrame, 0, sizeof(FRAME));
 	pFrame->Name = lName;
 	pFrame->TransformationMatrix = _fbxToMatrix(lLocal);
-	pFrame->BoneIndex = parentIndex + 1;
+	pFrame->ParentBoneIndex = parentIndex;
+	pFrame->BoneIndex = boneIndex;
 
 	if (pNode->GetChildCount() > 0)
 	{
@@ -415,7 +420,7 @@ FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute
 		for (int i = 0; i < pNode->GetChildCount(); i++)
 		{
 			FbxNode* pChildNode = pNode->GetChild(i);
-			LPFRAME frameChild = FetchSkeletons(pChildNode, pChildNode->GetNodeAttribute(), FbxAnim, parentIndex);
+			LPFRAME frameChild = FetchSkeletons(pChildNode, pChildNode->GetNodeAttribute(), FbxAnim, parentIndex, boneIndex);
 			if (pFrame->pFrameFirstChild == NULL)
 			{
 				pFrame->pFrameFirstChild = frameChild;
@@ -432,90 +437,29 @@ FRAME* FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute
 	return pFrame;
 }
 
-bool FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
+LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 {
+	LPMESH pMesh = new MESH();
+	const char* nodeName = pNode->GetName();
+	pMesh->Name = nodeName;
 	FbxMesh* pFbxMesh = (FbxMesh*)pNode->GetNodeAttribute();
 	if (!pFbxMesh->IsTriangleMesh()) {
 		FbxGeometryConverter converter(pFbxMesh->GetFbxManager());
 		converter.Triangulate(pFbxMesh, true); // 强制三角化
 	}
-	const int uvCount = pFbxMesh->GetElementUVCount();
+
 	// 1. 获取 FBX Mesh 的基础信息
 	const int numVertices = pFbxMesh->GetControlPointsCount(); // 控制点数量（顶点数）
 	const int numPolygons = pFbxMesh->GetPolygonCount();       // 面数量（每个面默认是三角形，需确保 FBX 已三角化）
-	// 2. 检查 FBX Mesh 是否三角化（未三角化则强制三角化）
-
-	// 3. 提取顶点数据（位置、UV、法线）
-	FbxVector4* pFbxVertices = pFbxMesh->GetControlPoints(); // FBX 顶点位置（右手坐标系）
-	FbxGeometryElement::EMappingMode normalMappingMode = pFbxMesh->GetElementNormal(0)->GetMappingMode();
-	FbxGeometryElement::EMappingMode uvMappingMode = pFbxMesh->GetElementUV(0)->GetMappingMode();
-	FbxLayerElementArrayTemplate<int>* materialIndice = &pFbxMesh->GetElementMaterial()->GetIndexArray();
+	pMesh->VertexCount = numVertices;
+	pMesh->FaceCount = numPolygons;
 
 	const FbxVector4* controlPoints = pFbxMesh->GetControlPoints();
 	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);;
 	const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(0);
-	FbxVector4 currentVertex;
-	FbxVector4 currentNormal;
-	FbxVector2 currentUV;
-	MATRIX geometryTransformMatrix;
-	
-	FbxNode* node = pFbxMesh->GetNode();
-	int materialCount = node->GetMaterialCount();
-
-	for (int m = 0; m < materialCount; ++m) {
-		FbxSurfaceMaterial* material = node->GetMaterial(m);
-
-		// 常见的标准材质类型
-		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
-			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;
-			// 可访问 Diffuse、Specular 等属性
-			FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-			int textureCount = prop.GetSrcObjectCount<FbxTexture>();
-
-			for (int t = 0; t < textureCount; ++t) {
-				FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
-				if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
-					FbxFileTexture* fileTex = (FbxFileTexture*)texture;
-					// 获取贴图文件路径
-					const char* texPath = fileTex->GetFileName();
-					printf("Diffuse Texture: %s\n", texPath);
-				}
-			}
-		}
-	}
 
 
-	std::vector<DWORD> indices;
-	// 遍历每个面，提取 3 个顶点索引
-	for (int polyIdx = 0; polyIdx < numPolygons; polyIdx++) {
-
-		// 提取当前面的 3 个顶点索引
-		DWORD idx0 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 0);
-		DWORD idx1 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 1);
-		DWORD idx2 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 2);
-		 
-		FbxVector4 v0 = pFbxMesh->GetControlPointAt(0);
-		FbxVector4 v1 = pFbxMesh->GetControlPointAt(1);
-		FbxVector4 v2 = pFbxMesh->GetControlPointAt(2);
-
-		FbxVector4 edge1 = v1 - v0;
-		FbxVector4 edge2 = v2 - v0;
-		FbxVector4 normal = edge1.CrossProduct(edge2);
-
-		// 判断绕序（此为YZ平面举例）
-		if (normal[2] > 0) {
-			printf("逆时针 CCW\n");
-		}
-		else {
-			printf("顺时针 CW\n");
-		}
-
-		// 5. 存入修正后的索引
-		indices.push_back(idx0);
-		indices.push_back(idx2);
-		indices.push_back(idx1);
-	}
-
+	//获取所有顶点，法线，UV信息
 	for (int index = 0; index < numVertices; index++)
 	{
 		FbxVector4 currentVertex = controlPoints[index];
@@ -531,7 +475,7 @@ bool FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 			lNormalIndex = lNormalElement->GetIndexArray().GetAt(index);
 		}
 
-		currentNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
+		FbxVector4 currentNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
 		VECTOR dxNormal = VECTOR(
 			static_cast<float>(currentNormal[0]),
 			static_cast<float>(currentNormal[1]),
@@ -544,10 +488,140 @@ bool FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 			uvIndex = lUVElement->GetIndexArray().GetAt(index);
 		}
 
-		currentUV = lUVElement->GetDirectArray().GetAt(uvIndex);
+		FbxVector2 currentUV = lUVElement->GetDirectArray().GetAt(uvIndex);
 		float u = static_cast<float>(currentUV[0]);
 		float v = 1 - static_cast<float>(currentUV[1]);
+		pMesh->Vertices.push_back(Vertex{
+			dxVertex.x, dxVertex.y, dxVertex.z,
+			u, v,
+			dxNormal.x,  dxNormal.y,  dxNormal.z
+			});
 	}
 
-	return false;
+	//获取所有索引缓存信息
+	std::vector<DWORD> indices;
+	// 遍历每个面，提取 3 个顶点索引
+	for (int polyIdx = 0; polyIdx < numPolygons; polyIdx++) {
+
+		// 提取当前面的 3 个顶点索引
+		DWORD idx0 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 0);
+		DWORD idx1 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 1);
+		DWORD idx2 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 2);
+
+		FbxVector4 v0 = pFbxMesh->GetControlPointAt(0);
+		FbxVector4 v1 = pFbxMesh->GetControlPointAt(1);
+		FbxVector4 v2 = pFbxMesh->GetControlPointAt(2);
+
+		FbxVector4 edge1 = v1 - v0;
+		FbxVector4 edge2 = v2 - v0;
+		FbxVector4 normal = edge1.CrossProduct(edge2);
+
+		// 判断绕序（此为YZ平面举例）
+		//if (normal[2] > 0) {
+		//	printf("逆时针 CCW\n");
+		//}
+		//else {
+		//	printf("顺时针 CW\n");
+		//}
+
+		// 5. 存入修正后的索引
+		indices.push_back(idx0);
+		indices.push_back(idx2);
+		indices.push_back(idx1);
+
+		pMesh->Indices.push_back(idx0);
+		pMesh->Indices.push_back(idx2);
+		pMesh->Indices.push_back(idx1);
+	}
+
+	// 遍历网格的所有蒙皮控制器（FbxSkin）
+	int count = pFbxMesh->GetDeformerCount(FbxDeformer::eSkin);
+	for (int skinIdx = 0; skinIdx < pFbxMesh->GetDeformerCount(FbxDeformer::eSkin); skinIdx++)
+	{
+
+		FbxSkin* pSkin = FbxCast<FbxSkin>(pFbxMesh->GetDeformer(skinIdx, FbxDeformer::eSkin));
+		if (!pSkin) continue;
+
+		std::cout << "找到蒙皮控制器，包含骨骼簇数：" << pSkin->GetClusterCount() << std::endl;
+
+		// 遍历每个骨骼簇（FbxCluster = 一根骨骼 + 受影响顶点 + 权重）
+		for (int clusterIdx = 0; clusterIdx < pSkin->GetClusterCount(); clusterIdx++)
+		{
+			Influence influence;
+			FbxCluster* pCluster = pSkin->GetCluster(clusterIdx);
+			const char* pBoneName = pCluster->GetLink()->GetName();
+			const int lIndexCount = pCluster->GetControlPointIndicesCount();
+			const int* lIndices = pCluster->GetControlPointIndices();
+			const double* lWeights = pCluster->GetControlPointWeights();
+
+			influence.count = lIndexCount;
+
+			for (int i = 0; i < lIndexCount; i++)
+			{
+				int vertexIdx = lIndices[i];
+				float weight = static_cast<float>(lWeights[i]);
+
+				influence.Vertices.push_back(vertexIdx);
+				influence.Weights.push_back(weight);
+		/*		std::cout << "vertex：" << vertexIdx << "weight：" << weight << std::endl;*/
+			}
+			pMesh->Influences[pBoneName] = influence;
+		}
+		break;//默认只获取一个
+	}
+	//获取材质和贴图信息
+	FbxNode* node = pFbxMesh->GetNode();
+	int materialCount = node->GetMaterialCount();
+
+	for (int m = 0; m < materialCount; ++m) {
+		Material mat;
+		FbxSurfaceMaterial* material = node->GetMaterial(m);
+
+		// 常见的标准材质类型
+		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
+			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;
+			// 可访问 Diffuse、Specular 等属性
+			// 漫反射颜色 Diffuse
+			FbxDouble3 diffuseColor = phong->Diffuse.Get();
+			// 高光颜色 Specular
+			FbxDouble3 specularColor = phong->Specular.Get();
+			// 环境色 Ambient
+			FbxDouble3 ambientColor = phong->Ambient.Get();
+			// 发光色 Emissive
+			FbxDouble3 emissiveColor = phong->Emissive.Get();
+			// 高光指数 Shininess
+			double shininess = phong->Shininess.Get();
+			// 透明度获取
+			float opacity = 1.0f - phong->TransparencyFactor.Get(); // 透明度是反向的
+
+
+			mat.MatD3D.Diffuse = COLORVALUE(diffuseColor[0], diffuseColor[1], diffuseColor[2]);
+			mat.MatD3D.Specular = COLORVALUE(specularColor[0], specularColor[1], specularColor[2]);
+			mat.MatD3D.Ambient = COLORVALUE(ambientColor[0], ambientColor[1], ambientColor[2]);
+			mat.MatD3D.Emissive = COLORVALUE(emissiveColor[0], emissiveColor[1], emissiveColor[2]);
+			mat.MatD3D.Power = (float)shininess;
+			mat.MatD3D.Opacity = opacity;
+
+			printf("Diffuse: %.2f %.2f %.2f\n", diffuseColor[0], diffuseColor[1], diffuseColor[2]);
+			printf("Specular: %.2f %.2f %.2f\n", specularColor[0], specularColor[1], specularColor[2]);
+			printf("Shininess: %.2f\n", shininess);
+
+			FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+			int textureCount = prop.GetSrcObjectCount<FbxTexture>();
+			for (int t = 0; t < textureCount; ++t) {
+				FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
+				if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
+					FbxFileTexture* fileTex = (FbxFileTexture*)texture;
+					// 获取贴图文件路径
+					const char* texPath = fileTex->GetFileName();
+					printf("Diffuse Texture: %s\n", texPath);
+					mat.pTexture = texPath;
+					break;//默认只取第一张贴图
+				}
+			}
+			pMesh->MatD3Ds.push_back(mat);
+		}
+	}
+
+	return pMesh;
 }

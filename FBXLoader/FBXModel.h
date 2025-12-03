@@ -21,9 +21,9 @@ private:
 	bool ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene);
 private:
 	bool FetchScene(FbxScene* pScene);
-	FRAME* FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim);
-	FRAME* FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex);
-	bool FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
+	LPFRAME FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim);
+	LPFRAME FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex,int& boneIndex);
+	LPMESH FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
 };
 
 #endif //_FBXModel_h_
