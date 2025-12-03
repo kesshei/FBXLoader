@@ -2,10 +2,12 @@
 
 FBXModel::FBXModel()
 {
+	m_modelData = NULL;
 }
 
 FBXModel::~FBXModel()
 {
+	m_modelData = NULL;
 }
 
 bool FBXModel::Load(const char* modelFile)
@@ -27,9 +29,13 @@ bool FBXModel::Load(const char* modelFile)
 	//{
 	//	return false;
 	//}
-	//开始准备解析模型资源
-	result = FetchScene(l_Scene);
 
+	//开始准备解析模型资源
+	LPModelData modelData = FetchScene(l_Scene);
+	if (modelData != NULL)
+	{
+		m_modelData = modelData;
+	}
 
 	DestroySdkObjects(l_FbxManager);
 	return true;
@@ -246,15 +252,43 @@ bool FBXModel::ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene)
 	return true;
 }
 
-bool FBXModel::FetchScene(FbxScene* pScene)
+// 核心递归函数：通过引用修改映射，返回引用方便调用
+std::map<int, std::string>& TraverseFrameTree(LPFRAME pFrame, std::map<int, std::string>& boneMap)
 {
-	int i;
+	if (pFrame == nullptr)
+		return boneMap; // 空节点直接返回原映射
+
+	// 1. 处理当前节点：收集有效骨骼
+	if (pFrame->BoneIndex >= 0 && pFrame->Name != nullptr && pFrame->Name[0] != '\0')
+	{
+		boneMap[pFrame->BoneIndex] = pFrame->Name;
+	}
+
+	// 2. 递归遍历子节点（传递映射引用）
+	if (pFrame->pFrameFirstChild != nullptr)
+	{
+		TraverseFrameTree(pFrame->pFrameFirstChild, boneMap);
+	}
+
+	// 3. 遍历兄弟节点（传递映射引用）
+	if (pFrame->pFrameSibling != nullptr)
+	{
+		TraverseFrameTree(pFrame->pFrameSibling, boneMap);
+	}
+
+	return boneMap; // 返回映射引用，支持直接接收结果
+}
+
+LPModelData FBXModel::FetchScene(FbxScene* pScene)
+{
+	LPModelData modelData = NULL;
 	FbxNode* lNode = pScene->GetRootNode();
 	FbxAnimEvaluator* FbxAnim = pScene->GetAnimationEvaluator();
-	std::vector<LPFRAME> frameList;
 	if (lNode)
 	{
-		for (i = 0; i < lNode->GetChildCount(); i++)
+		modelData = new ModelData();
+		//提取各种属性信息
+		for (int i = 0; i < lNode->GetChildCount(); i++)
 		{
 			FbxNode* pNode = lNode->GetChild(i);
 			FbxNodeAttribute* pNodeAttribute = pNode->GetNodeAttribute();
@@ -263,13 +297,15 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
 				switch (lAttributeType)
 				{
-					//case FbxNodeAttribute::eSkeleton: {
-					//	LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
-					//	frameList.push_back(frame);
-					//}break;
+				case FbxNodeAttribute::eSkeleton: {
+					LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
+					modelData->Bones.push_back(frame);
+					TraverseFrameTree(frame, modelData->BoneNameToIndex);
+				}break;
 				case FbxNodeAttribute::eMesh:
 				{
 					LPMESH mesh = FetchMesh(pNode, pNodeAttribute);
+					modelData->Meshs.push_back(mesh);
 				}
 				break;
 
@@ -301,8 +337,10 @@ bool FBXModel::FetchScene(FbxScene* pScene)
 				}
 			}
 		}
+		//提取动画信息
+		FetchAnimation(pScene, modelData);
 	}
-	return true;
+	return modelData;
 }
 
 MATRIX _fbxToMatrix(const FbxAMatrix& fbxMatrix)
@@ -383,6 +421,8 @@ void PrintBoneTreeRoot(FRAME* pRootFrame) {
 	std::cout.unsetf(std::ios::fixed);
 	std::cout.precision(6); // C++ 默认精度
 }
+
+
 
 LPFRAME FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim)
 {
@@ -563,7 +603,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 
 				influence.Vertices.push_back(vertexIdx);
 				influence.Weights.push_back(weight);
-		/*		std::cout << "vertex：" << vertexIdx << "weight：" << weight << std::endl;*/
+				/*		std::cout << "vertex：" << vertexIdx << "weight：" << weight << std::endl;*/
 			}
 			pMesh->Influences[pBoneName] = influence;
 		}
@@ -624,4 +664,89 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 	}
 
 	return pMesh;
+}
+
+LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
+{
+	//正常3dMax的fbx里，只会有一个动画，所以，我们默认只取第一个动画（各个动画如何分割呢，目前只能通过配置的方式了）
+	FbxAnimStack* pAnimStack = pScene->GetSrcObject<FbxAnimStack>(0);
+	if (pAnimStack == NULL)
+	{
+		return NULL;
+	}
+	LPAnimationClip pAnimClip = new AnimationClip();
+	const char* name = pAnimStack->GetName();
+	pAnimClip->Name = name;
+
+	FbxAnimLayer* animLayer = pAnimStack->GetSrcObject<FbxAnimLayer>(0);
+	// 遍历每个骨骼节点，提取平移/旋转/缩放的关键帧
+	for (int boneIdx = 0; boneIdx < modelData->BoneNameToIndex.size(); boneIdx++) {
+		const char* boneName = modelData->BoneNameToIndex[boneIdx].c_str();
+		FbxNode* boneNode = pScene->FindNodeByName(boneName);
+		if (!boneNode) continue;
+
+		std::vector<AnimationKeyFrame> keyFrames;
+
+		// 提取平移关键帧
+		FbxAnimCurve* txCurve = boneNode->LclTranslation.GetCurve(animLayer, "X");
+		FbxAnimCurve* tyCurve = boneNode->LclTranslation.GetCurve(animLayer, "Y");
+		FbxAnimCurve* tzCurve = boneNode->LclTranslation.GetCurve(animLayer, "Z");
+
+		// 提取旋转关键帧（FBX默认是Euler角，转换为四元数）
+		FbxAnimCurve* rxCurve = boneNode->LclRotation.GetCurve(animLayer, "X");
+		FbxAnimCurve* ryCurve = boneNode->LclRotation.GetCurve(animLayer, "Y");
+		FbxAnimCurve* rzCurve = boneNode->LclRotation.GetCurve(animLayer, "Z");
+
+		// 提取缩放关键帧
+		FbxAnimCurve* sxCurve = boneNode->LclScaling.GetCurve(animLayer, "X");
+		FbxAnimCurve* syCurve = boneNode->LclScaling.GetCurve(animLayer, "Y");
+		FbxAnimCurve* szCurve = boneNode->LclScaling.GetCurve(animLayer, "Z");
+
+		// 假设所有通道关键帧数量相同，取最大关键帧数量
+		int keyCount = std::max({
+			txCurve ? txCurve->KeyGetCount() : 0,
+			rxCurve ? rxCurve->KeyGetCount() : 0,
+			sxCurve ? sxCurve->KeyGetCount() : 0
+			});
+
+
+		//遍历关键帧，插值计算每个时间点的变换
+		for (int k = 0; k < keyCount; k++) {
+			AnimationKeyFrame keyFrame;
+			FbxTime time;
+
+			// 提取时间（FBX时间单位转换为秒）
+			if (txCurve) time = txCurve->KeyGetTime(k);
+			else if (rxCurve) time = rxCurve->KeyGetTime(k);
+			else if (sxCurve) time = sxCurve->KeyGetTime(k);
+			keyFrame.Time = (float)time.GetSecondDouble();
+
+			// 平移插值
+			keyFrame.Translation.x = txCurve ? txCurve->Evaluate(time) : 0.0f;
+			keyFrame.Translation.y = tyCurve ? tyCurve->Evaluate(time) : 0.0f;
+			keyFrame.Translation.z = tzCurve ? tzCurve->Evaluate(time) : 0.0f;
+
+			// 旋转插值（Euler角→四元数）
+			float rx = rxCurve ? rxCurve->Evaluate(time) * PI / 180.0f : 0.0f;
+			float ry = ryCurve ? ryCurve->Evaluate(time) * PI / 180.0f : 0.0f;
+			float rz = rzCurve ? rzCurve->Evaluate(time) * PI / 180.0f : 0.0f;
+			//FbxQuaternion fbxQuat;
+			//fbxQuat.eul(yaw, pitch, roll);
+			//D3DXQuaternionRotationYawPitchRoll(&frame.rotate, ry, rx, rz);
+			keyFrame.Rotation.x = rx;
+			keyFrame.Rotation.y = ry;
+			keyFrame.Rotation.z = rz;
+			keyFrame.Rotation.w = 1;
+
+			//// 缩放置信
+			//keyFrame.Scale.x = sxCurve ? sxCurve->Evaluate(time) : 1.0f;
+			//keyFrame.Scale.y = syCurve ? syCurve->Evaluate(time) : 1.0f;
+			//keyFrame.Scale.z = szCurve ? szCurve->Evaluate(time) : 1.0f;
+
+			keyFrames.push_back(keyFrame);
+		}
+		pAnimClip->boneKeyFrames[boneName] = keyFrames;
+	}
+	modelData->Animations.push_back(pAnimClip);
+	return modelData;
 }

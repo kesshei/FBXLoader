@@ -2,6 +2,10 @@
 #include <map>
 #ifndef _ModelData_h_
 #define _ModelData_h_
+// 手动定义 D3DX_PI（值与官方定义一致：3.14159265358979323846f）
+#ifndef PI
+#define PI 3.14159265358979323846f
+#endif
 
 typedef unsigned long       DWORD;
 typedef int                 BOOL;
@@ -82,8 +86,10 @@ typedef struct _COLORVALUE {
 } COLORVALUE;
 
 typedef struct _VECTOR3 {
-	// 带参数构造：直接赋值 16 个元素
-	_VECTOR3(float x, float y, float z) : x(x), y(y), z(z) {}
+	// VECTOR3 默认构造（可选，初始化为零向量）
+	_VECTOR3() : x(0.0f), y(0.0f), z(0.0f) {}
+	// 带参数构造（方便赋值）
+	_VECTOR3(FLOAT _x, FLOAT _y, FLOAT _z) : x(_x), y(_y), z(_z) {}
 	float x;
 	float y;
 	float z;
@@ -115,7 +121,7 @@ typedef struct _Influence
 typedef struct _Material
 {
 	MATERIALInfo  MatD3D;
-	const char*   pTexture;
+	const char* pTexture;
 }Material;
 
 typedef struct _MESH
@@ -132,7 +138,7 @@ typedef struct _MESH
 
 typedef struct _MESHCONTAINER
 {
-	const char*  Name;
+	const char* Name;
 	MESH		 pOrigMesh;
 }MESHCONTAINER, * LPMESHCONTAINER;
 
@@ -141,8 +147,8 @@ typedef struct _FRAME
 	const char* Name;
 	MATRIX		      TransformationMatrix;
 	LPMESHCONTAINER	  pMeshContainer;
-	struct _FRAME*    pFrameSibling;   //兄弟节点指向下一个
-	struct _FRAME*    pFrameFirstChild;//指向第一个子节点
+	struct _FRAME* pFrameSibling;   //兄弟节点指向下一个
+	struct _FRAME* pFrameFirstChild;//指向第一个子节点
 	MATRIX	          ParentTM;
 	MATRIX	          NodeTMInverse;
 	int               BoneIndex;
@@ -160,8 +166,12 @@ typedef struct _KEY_VECTOR3
 typedef struct _QUATERNION
 {
 public:
-	_QUATERNION() {}
-	_QUATERNION(FLOAT x, FLOAT y, FLOAT z, FLOAT w);
+	// 默认构造（类内实现）
+	_QUATERNION() : x(0.0f), y(0.0f), z(0.0f), w(1.0f) {}
+	// 带参数构造（类内实现，关键修复：解决链接错误）
+	_QUATERNION(FLOAT _x, FLOAT _y, FLOAT _z, FLOAT _w)
+		: x(_x), y(_y), z(_z), w(_w) {
+	}
 	FLOAT x, y, z, w;
 } QUATERNION, * LPDQUATERNION;
 
@@ -171,23 +181,45 @@ typedef struct _KEY_QUATERNION
 	QUATERNION Value;
 } KEY_QUATERNION, * LPXKEY_QUATERNION;
 
-typedef struct _AnimationSRTKey
+typedef struct _AnimationKeyFrame
+{
+	FLOAT Time;
+	VECTOR3      Translation;
+	QUATERNION   Rotation;
+	//VECTOR3      Scale; //默认不用这个
+	// 默认构造函数（C++03 兼容）
+	_AnimationKeyFrame() {
+		Time = 0.0f;                          // 时间默认从 0 开始
+		//Scale = VECTOR3(1.0f, 1.0f, 1.0f);    // 默认单位缩放（避免缩放为 0 导致模型消失）
+		Rotation = QUATERNION(0.0f, 0.0f, 0.0f, 1.0f); // 单位四元数（无旋转）
+		Translation = VECTOR3(0.0f, 0.0f, 0.0f); // 零平移
+	}
+}AnimationKeyFrame, * LPAnimationKeyFrame;
+//
+//typedef struct _AnimationKeyFrame
+//{
+//	const char* Name;
+//	FLOAT Time;
+//	std::vector<VECTOR3>      Scales; //默认不用这个
+//	std::vector<QUATERNION>   Rotations;
+//	std::vector<VECTOR3>      Translations;
+//}AnimationKeyFrame, * LPAnimationKeyFrame;
+
+typedef struct _AnimationClip
 {
 	const char* Name;
-	std::vector<KEY_VECTOR3>      Scales; //默认不用这个
-	std::vector<KEY_QUATERNION>   Rotations;
-	std::vector<KEY_VECTOR3>      Translations;
-}AnimationSRTKey, * LPAnimationSRTKey;
+	float duration;            // 动画总时长（秒）
+	//std::vector<AnimationKeyFrame>      AnimationKeys;
+	std::map<std::string, std::vector<AnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
+}AnimationClip, * LPAnimationClip;
 
-typedef struct _Animation
-{
-	const char* Name;
-	std::vector<AnimationSRTKey>      AnimationKeys;
-}Animation, * LPAnimation;
 
-typedef struct _Animations
+typedef struct _ModelData
 {
-	std::vector<Animation>      Animations;
-}Animations, * LPAnimations;
+	std::vector<LPFRAME>          Bones;           // 骨骼列表 默认一个骨骼对象
+	std::map<int, std::string>    BoneNameToIndex; // 骨骼名称到索引的映射
+	std::vector<LPAnimationClip>  Animations;      // 动画列表
+	std::vector<LPMESH>           Meshs;            // 网格（带蒙皮信息） 默认至少一个网格对象
+}ModelData, * LPModelData;
 
 #endif //_ModelData_h_

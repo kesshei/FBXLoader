@@ -20,10 +20,13 @@ private:
 	bool LoadScene(FbxManager* pManager, FbxDocument* pScene, const char* modelFile);
 	bool ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene);
 private:
-	bool FetchScene(FbxScene* pScene);
+	LPModelData FetchScene(FbxScene* pScene);
 	LPFRAME FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim);
 	LPFRAME FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex,int& boneIndex);
 	LPMESH FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute);
+	LPModelData FetchAnimation(FbxScene* pScene, LPModelData modelData);
+private:
+	LPModelData m_modelData;
 };
 
 #endif //_FBXModel_h_
