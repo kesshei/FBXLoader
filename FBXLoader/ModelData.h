@@ -81,13 +81,13 @@ typedef struct _COLORVALUE {
 
 } COLORVALUE;
 
-typedef struct _VECTOR {
+typedef struct _VECTOR3 {
 	// 带参数构造：直接赋值 16 个元素
-	_VECTOR(float x, float y, float z) : x(x), y(y), z(z) {}
+	_VECTOR3(float x, float y, float z) : x(x), y(y), z(z) {}
 	float x;
 	float y;
 	float z;
-} VECTOR;
+} VECTOR3;
 
 typedef struct _MATERIALInfo {
 	COLORVALUE   Diffuse;        /* Diffuse color RGBA */
@@ -151,5 +151,43 @@ typedef struct _FRAME
 	WORD              MaterialID;
 }FRAME, * LPFRAME;
 
+typedef struct _KEY_VECTOR3
+{
+	FLOAT Time;
+	VECTOR3 Value;
+} KEY_VECTOR3, * LPKEY_VECTOR3;
+
+typedef struct _QUATERNION
+{
+public:
+	_QUATERNION() {}
+	_QUATERNION(FLOAT x, FLOAT y, FLOAT z, FLOAT w);
+	FLOAT x, y, z, w;
+} QUATERNION, * LPDQUATERNION;
+
+typedef struct _KEY_QUATERNION
+{
+	FLOAT Time;
+	QUATERNION Value;
+} KEY_QUATERNION, * LPXKEY_QUATERNION;
+
+typedef struct _AnimationSRTKey
+{
+	const char* Name;
+	std::vector<KEY_VECTOR3>      Scales; //默认不用这个
+	std::vector<KEY_QUATERNION>   Rotations;
+	std::vector<KEY_VECTOR3>      Translations;
+}AnimationSRTKey, * LPAnimationSRTKey;
+
+typedef struct _Animation
+{
+	const char* Name;
+	std::vector<AnimationSRTKey>      AnimationKeys;
+}Animation, * LPAnimation;
+
+typedef struct _Animations
+{
+	std::vector<Animation>      Animations;
+}Animations, * LPAnimations;
 
 #endif //_ModelData_h_

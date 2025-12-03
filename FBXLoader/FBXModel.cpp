@@ -463,7 +463,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 	for (int index = 0; index < numVertices; index++)
 	{
 		FbxVector4 currentVertex = controlPoints[index];
-		VECTOR dxVertex = VECTOR(
+		VECTOR3 dxVertex = VECTOR3(
 			static_cast<float>(currentVertex[0]),
 			static_cast<float>(currentVertex[1]),
 			static_cast<float>(currentVertex[2]));
@@ -476,7 +476,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 		}
 
 		FbxVector4 currentNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
-		VECTOR dxNormal = VECTOR(
+		VECTOR3 dxNormal = VECTOR3(
 			static_cast<float>(currentNormal[0]),
 			static_cast<float>(currentNormal[1]),
 			static_cast<float>(currentNormal[2]));
