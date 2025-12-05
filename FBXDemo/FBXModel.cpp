@@ -10,7 +10,7 @@ FBXModel::~FBXModel()
 	m_modelData = NULL;
 }
 
-bool FBXModel::Load(const char* modelFile)
+bool FBXModel::Load(std::string modelFile)
 {
 	FbxManager* l_FbxManager = NULL;
 	FbxScene* l_Scene = NULL;
@@ -79,7 +79,7 @@ bool FBXModel::DestroySdkObjects(FbxManager* pManager)
 	return true;
 }
 
-bool FBXModel::LoadScene(FbxManager* pManager, FbxDocument* pScene, const char* modelFile)
+bool FBXModel::LoadScene(FbxManager* pManager, FbxDocument* pScene, std::string modelFile)
 {
 	int lFileMajor, lFileMinor, lFileRevision;
 	int lSDKMajor, lSDKMinor, lSDKRevision;
@@ -95,7 +95,7 @@ bool FBXModel::LoadScene(FbxManager* pManager, FbxDocument* pScene, const char* 
 	FbxImporter* lImporter = FbxImporter::Create(pManager, "");
 
 	// Initialize the importer by providing a filename.
-	const bool lImportStatus = lImporter->Initialize(modelFile, -1, pManager->GetIOSettings());
+	const bool lImportStatus = lImporter->Initialize(modelFile.c_str(), -1, pManager->GetIOSettings());
 	lImporter->GetFileVersion(lFileMajor, lFileMinor, lFileRevision);
 
 	if (!lImportStatus)
@@ -259,7 +259,7 @@ std::map<int, std::string>& TraverseFrameTree(LPFRAME pFrame, std::map<int, std:
 		return boneMap; // 空节点直接返回原映射
 
 	// 1. 处理当前节点：收集有效骨骼
-	if (pFrame->BoneIndex >= 0 && pFrame->Name != nullptr && pFrame->Name[0] != '\0')
+	if (pFrame->BoneIndex >= 0 && !pFrame->Name.empty() && pFrame->Name[0] != '\0')
 	{
 		boneMap[pFrame->BoneIndex] = pFrame->Name;
 	}
@@ -299,7 +299,7 @@ LPModelData FBXModel::FetchScene(FbxScene* pScene)
 				{
 				case FbxNodeAttribute::eSkeleton: {
 					LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
-					modelData->Bones.push_back(frame);
+					modelData->Bone = frame;
 					TraverseFrameTree(frame, modelData->BoneNameToIndex);
 				}break;
 				case FbxNodeAttribute::eMesh:
@@ -448,7 +448,6 @@ LPFRAME FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribut
 
 	boneIndex += 1;
 	pFrame = new FRAME;
-	memset(pFrame, 0, sizeof(FRAME));
 	pFrame->Name = lName;
 	pFrame->TransformationMatrix = _fbxToMatrix(lLocal);
 	pFrame->ParentBoneIndex = parentIndex;
@@ -747,6 +746,6 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 		}
 		pAnimClip->boneKeyFrames[boneName] = keyFrames;
 	}
-	modelData->Animations.push_back(pAnimClip);
+	modelData->Animation = pAnimClip;
 	return modelData;
 }

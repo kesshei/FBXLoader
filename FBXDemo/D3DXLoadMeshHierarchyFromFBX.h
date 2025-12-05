@@ -7,6 +7,7 @@
 #ifndef SAFE_DELETE
 #define SAFE_DELETE(p)       { if(p) { delete (p);     (p)=NULL; } }
 #endif    
+#include <string>
 #ifndef SAFE_DELETE_ARRAY
 #define SAFE_DELETE_ARRAY(p) { if(p) { delete[] (p);   (p)=NULL; } }
 #endif    
@@ -34,23 +35,24 @@ struct D3DXFRAME_DERIVED : public D3DXFRAME
 //-----------------------------------------------------------------------------
 struct D3DXMESHCONTAINER_DERIVED : public D3DXMESHCONTAINER
 {
-    LPDIRECT3DTEXTURE9* ppTextures;            //纹理数组
+    LPDIRECT3DTEXTURE9   ppTextures;            //纹理数组
     LPD3DXMESH           pOrigMesh;             //原始网格
     LPD3DXATTRIBUTERANGE pAttributeTable;
     DWORD                NumAttributeGroups;    //属性组数量,即子网格数量
     DWORD                NumInfl;               //每个顶点最多受多少骨骼的影响
     LPD3DXBUFFER         pBoneCombinationBuf;   //骨骼结合表
-    D3DXMATRIX** ppBoneMatrixPtrs;      //存放骨骼的组合变换矩阵
-    D3DXMATRIX* pBoneOffsetMatrices;   //存放骨骼的初始变换矩阵
+    D3DXMATRIX**         ppBoneMatrixPtrs;      //存放骨骼的组合变换矩阵
+    D3DXMATRIX*          pBoneOffsetMatrices;   //存放骨骼的初始变换矩阵
     DWORD                NumPaletteEntries;     //骨骼数量上限
     bool                 UseSoftwareVP;         //标识是否使用软件顶点处理
 };
 
 
 HRESULT WINAPI D3DXLoadMeshHierarchyFromFBX(
-    const char* Filename,
+    std::string Filename,
     LPDIRECT3DDEVICE9 pD3DDevice,
     LPD3DXFRAME* ppFrameHierarchy,
+    LPD3DXMESHCONTAINER* ppMeshContainer,
     LPD3DXANIMATIONCONTROLLER* ppAnimController);
 
 //--------------------------------------------------------------------------------------

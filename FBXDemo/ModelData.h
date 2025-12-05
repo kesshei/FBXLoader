@@ -107,54 +107,55 @@ typedef struct _MATERIALInfo {
 typedef struct _Vertex
 {
 	float x, y, z;
-	float u, v;
 	float nx, ny, nz;
+	float u, v;
 }Vertex;
 
 typedef struct _Influence
 {
 	int count;
-	std::vector<uint32_t> Vertices;
+	std::vector<unsigned long> Vertices;
 	std::vector<float> Weights;
 }Influence;
 
 typedef struct _Material
 {
 	MATERIALInfo  MatD3D;
-	const char* pTexture;
+	std::string pTexture;
 }Material;
 
 typedef struct _MESH
 {
-	const char* Name;
+	std::string Name;
 	int VertexCount;
 	int FaceCount;
 	std::vector<Vertex> Vertices;
 	std::vector<DWORD>  Indices;
 	//std::vector<DWORD>  Attributes;
 	std::vector<Material>   MatD3Ds;
-	std::map<const char*, Influence> Influences;
+	std::map<std::string, Influence> Influences;
 }MESH, * LPMESH;
 
 typedef struct _MESHCONTAINER
 {
-	const char* Name;
+	std::string Name;
 	MESH		 pOrigMesh;
 }MESHCONTAINER, * LPMESHCONTAINER;
 
 typedef struct _FRAME
 {
-	const char* Name;
+	std::string Name;
 	MATRIX		      TransformationMatrix;
 	LPMESHCONTAINER	  pMeshContainer;
-	struct _FRAME* pFrameSibling;   //兄弟节点指向下一个
-	struct _FRAME* pFrameFirstChild;//指向第一个子节点
+	struct _FRAME*    pFrameSibling;   //兄弟节点指向下一个
+	struct _FRAME*    pFrameFirstChild;//指向第一个子节点
 	MATRIX	          ParentTM;
 	MATRIX	          NodeTMInverse;
 	int               BoneIndex;
 	int               ParentBoneIndex;
 	//Material	      pMaterial;
 	WORD              MaterialID;
+	_FRAME() : Name(""), TransformationMatrix(), pMeshContainer(), pFrameSibling(NULL), pFrameFirstChild(NULL), ParentTM(), NodeTMInverse(), BoneIndex(0), ParentBoneIndex(-1), MaterialID(0){}
 }FRAME, * LPFRAME;
 
 typedef struct _KEY_VECTOR3
@@ -207,7 +208,7 @@ typedef struct _AnimationKeyFrame
 
 typedef struct _AnimationClip
 {
-	const char* Name;
+	std::string Name;
 	float duration;            // 动画总时长（秒）
 	//std::vector<AnimationKeyFrame>      AnimationKeys;
 	std::map<std::string, std::vector<AnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
@@ -216,9 +217,9 @@ typedef struct _AnimationClip
 
 typedef struct _ModelData
 {
-	std::vector<LPFRAME>          Bones;           // 骨骼列表 默认一个骨骼对象
+	LPFRAME          Bone;           // 骨骼列表 默认一个骨骼对象
 	std::map<int, std::string>    BoneNameToIndex; // 骨骼名称到索引的映射
-	std::vector<LPAnimationClip>  Animations;      // 动画列表
+	LPAnimationClip  Animation;      // 动画列表 默认一个动画对象
 	std::vector<LPMESH>           Meshs;            // 网格（带蒙皮信息） 默认至少一个网格对象
 }ModelData, * LPModelData;
 

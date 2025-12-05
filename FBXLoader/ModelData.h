@@ -109,8 +109,8 @@ typedef struct _MATERIALInfo {
 typedef struct _Vertex
 {
 	float x, y, z;
-	float u, v;
 	float nx, ny, nz;
+	float u, v;
 }Vertex;
 
 typedef struct _Influence

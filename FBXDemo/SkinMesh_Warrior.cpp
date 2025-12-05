@@ -31,6 +31,7 @@ struct CUSTOMVERTEX
 LPD3DXFRAME	                g_pFrameRoot = NULL;
 D3DXMATRIX* g_pBoneMatrices = NULL;
 LPD3DXANIMATIONCONTROLLER	g_pAnimController = NULL;
+LPD3DXMESHCONTAINER 	   g_pMeshContainer = NULL;
 
 CCamera* g_pCamera = NULL;
 LPDIRECT3DVERTEXBUFFER9     g_pFloorVBuf = NULL;
@@ -174,7 +175,7 @@ HRESULT InitDirect3D(HWND hWnd, HINSTANCE hInstance)
 	pD3D->Release();
 
 	// ´´½¨¹Ç÷À¶¯»­
-	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot,&g_pMeshContainer, &g_pAnimController);
 	//g_pAllocateHier = new CAllocateHierarchy();
 	//D3DXLoadMeshHierarchyFromX(L"warrior.x", D3DXMESH_MANAGED, g_pd3dDevice,
 	//	g_pAllocateHier, NULL, &g_pFrameRoot, &g_pAnimController);
