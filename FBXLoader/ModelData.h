@@ -7,6 +7,8 @@
 #define PI 3.14159265358979323846f
 #endif
 
+//默认有一个骨骼，一个蒙皮，一个动画，多个网格
+
 typedef unsigned long       DWORD;
 typedef int                 BOOL;
 typedef unsigned char       BYTE;
@@ -218,7 +220,7 @@ typedef struct _ModelData
 {
 	std::vector<LPFRAME>          Bones;           // 骨骼列表 默认一个骨骼对象
 	std::map<int, std::string>    BoneNameToIndex; // 骨骼名称到索引的映射
-	std::vector<LPAnimationClip>  Animations;      // 动画列表
+	std::vector<LPAnimationClip>  Animations;      // 动画列表 (默认一个动画)
 	std::vector<LPMESH>           Meshs;            // 网格（带蒙皮信息） 默认至少一个网格对象
 }ModelData, * LPModelData;
 

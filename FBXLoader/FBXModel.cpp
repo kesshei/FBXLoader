@@ -294,7 +294,7 @@ LPModelData FBXModel::FetchScene(FbxScene* pScene)
 			FbxNodeAttribute* pNodeAttribute = pNode->GetNodeAttribute();
 			if (pNodeAttribute != NULL)
 			{
-				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
+				FbxNodeAttribute::EType lAttributeType = (pNodeAttribute->GetAttributeType());
 				switch (lAttributeType)
 				{
 				case FbxNodeAttribute::eSkeleton: {

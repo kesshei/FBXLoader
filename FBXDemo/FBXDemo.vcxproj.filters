@@ -15,10 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="FBXModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FBXModel.cpp">
+    <ClCompile Include="Camera.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="D3DXLoadMeshHierarchyFromFBX.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SkinMesh_Warrior.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -28,6 +34,12 @@
     </ClInclude>
     <ClInclude Include="ModelData.h">
       <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DXLoadMeshHierarchyFromFBX.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

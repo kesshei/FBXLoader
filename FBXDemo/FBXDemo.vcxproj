@@ -128,10 +128,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="D3DXLoadMeshHierarchyFromFBX.cpp" />
     <ClCompile Include="FBXModel.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="SkinMesh_Warrior.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="D3DXLoadMeshHierarchyFromFBX.h" />
     <ClInclude Include="FBXModel.h" />
     <ClInclude Include="ModelData.h" />
   </ItemGroup>
