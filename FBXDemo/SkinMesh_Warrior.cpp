@@ -31,7 +31,7 @@ struct CUSTOMVERTEX
 LPD3DXFRAME	                g_pFrameRoot = NULL;
 D3DXMATRIX* g_pBoneMatrices = NULL;
 LPD3DXANIMATIONCONTROLLER	g_pAnimController = NULL;
-LPD3DXMESHCONTAINER 	   g_pMeshContainer = NULL;
+std::vector<LPD3DXMESHCONTAINER*> 	g_pMeshContainer;
 
 CCamera* g_pCamera = NULL;
 LPDIRECT3DVERTEXBUFFER9     g_pFloorVBuf = NULL;
@@ -238,42 +238,42 @@ VOID Direct3DRender(HWND hWnd, FLOAT fTimeDelta)
 	fCurrTime += fTimeDelta;
 
 	LPD3DXANIMATIONSET pAnimationSet = NULL;
-	/*if (::GetAsyncKeyState(0x31) & 0x8000f)
+	if (::GetAsyncKeyState(0x31) & 0x8000f)
 	{
 		fMoveSpeed = 0.0f;
-		g_pAnimController->GetAnimationSetByName("stay", &pAnimationSet);
-		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
+	/*	g_pAnimController->GetAnimationSetByName("stay", &pAnimationSet);
+		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);*/
 	}
 	if (::GetAsyncKeyState(0x32) & 0x8000f)
 	{
 		fMoveSpeed = 0.8f;
-		g_pAnimController->GetAnimationSetByName("walk", &pAnimationSet);
-		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
+	/*	g_pAnimController->GetAnimationSetByName("walk", &pAnimationSet);
+		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);*/
 	}
 	if (::GetAsyncKeyState(0x33) & 0x8000f)
 	{
 		fMoveSpeed = 0.0f;
-		g_pAnimController->GetAnimationSetByName("attack", &pAnimationSet);
-		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
+		/*g_pAnimController->GetAnimationSetByName("attack", &pAnimationSet);
+		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);*/
 	}
 	if (::GetAsyncKeyState(0x34) & 0x8000f)
 	{
 		fMoveSpeed = 0.0f;
-		g_pAnimController->GetAnimationSetByName("behit", &pAnimationSet);
-		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
+	/*	g_pAnimController->GetAnimationSetByName("behit", &pAnimationSet);
+		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);*/
 	}
 	if (::GetAsyncKeyState(0x35) & 0x8000f)
 	{
 		fMoveSpeed = 0.0f;
-		g_pAnimController->GetAnimationSetByName("dieing", &pAnimationSet);
-		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
+	/*	g_pAnimController->GetAnimationSetByName("dieing", &pAnimationSet);
+		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);*/
 	}
 	if (::GetAsyncKeyState(0x36) & 0x8000f)
 	{
 		fMoveSpeed = 0.0f;
-		g_pAnimController->GetAnimationSetByName("dead", &pAnimationSet);
-		SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
-	}*/
+		//g_pAnimController->GetAnimationSetByName("dead", &pAnimationSet);
+		//SmoothChangeAnimation(g_pAnimController, pAnimationSet, fCurrTime);
+	}
 	SAFE_RELEASE(pAnimationSet);
 
 	// 控制运动方向
@@ -310,8 +310,8 @@ VOID Direct3DRender(HWND hWnd, FLOAT fTimeDelta)
 	//g_pAnimController->AdvanceTime(fTimeDelta, NULL);
 	//UpdateFrameMatrices(g_pFrameRoot, &matRole);
 
-	//// 绘制蒙皮网格
-	//DrawFrame(g_pd3dDevice, g_pFrameRoot);
+	// 绘制蒙皮网格
+	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
 
 	// 绘制地板
 	D3DXMATRIX matFloor;

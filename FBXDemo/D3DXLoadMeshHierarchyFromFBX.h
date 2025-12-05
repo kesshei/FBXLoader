@@ -11,6 +11,7 @@
 #ifndef SAFE_DELETE_ARRAY
 #define SAFE_DELETE_ARRAY(p) { if(p) { delete[] (p);   (p)=NULL; } }
 #endif    
+#include <vector>
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(p)      { if(p) { (p)->Release(); (p)=NULL; } }
 #endif
@@ -52,7 +53,7 @@ HRESULT WINAPI D3DXLoadMeshHierarchyFromFBX(
     std::string Filename,
     LPDIRECT3DDEVICE9 pD3DDevice,
     LPD3DXFRAME* ppFrameHierarchy,
-    LPD3DXMESHCONTAINER* ppMeshContainer,
+    std::vector<LPD3DXMESHCONTAINER*>* ppMeshContainer,
     LPD3DXANIMATIONCONTROLLER* ppAnimController);
 
 //--------------------------------------------------------------------------------------
@@ -92,6 +93,16 @@ HRESULT DestroyFrame(LPD3DXFRAME pFrameToFree);
 // Desc: ÊÍ·ÅÍø¸ñÈÝÆ÷
 //--------------------------------------------------------------------------------------
 HRESULT DestroyMeshContainer(LPD3DXMESHCONTAINER pMeshContainerBase);
+//--------------------------------------------------------------------------------------
+// Name: DrawMeshContainer()
+// Desc: »æÖÆÃÉÆ¤ÈÝÆ÷ÖÐµÄÃÉÆ¤Íø¸ñ
+//--------------------------------------------------------------------------------------
+void DrawMeshContainer(IDirect3DDevice9* pd3dDevice, LPD3DXMESHCONTAINER pMeshContainerBase, LPD3DXFRAME pFrameBase);
 
 
+//--------------------------------------------------------------------------------------
+// Name: DrawFrame()
+// Desc: »æÖÆ¹Ç÷À
+//--------------------------------------------------------------------------------------
+void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD3DXMESHCONTAINER*> ppMeshContainer);
 #endif
