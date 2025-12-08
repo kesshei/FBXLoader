@@ -281,7 +281,7 @@ HRESULT Objects_Init()
 	D3DXLoadMeshFromX(L"WYJ.X", D3DXMESH_MANAGED, g_pd3dDevice, &pAdjBuffer, &pMtrlBuffer, NULL, &g_dwNumMtrls, &g_pMesh);
 
 	// 创建骨骼动画
-	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/box.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
 
 	// 读取材质和纹理数据
 	D3DXMATERIAL *pMtrls = (D3DXMATERIAL*)pMtrlBuffer->GetBufferPointer(); //创建一个D3DXMATERIAL结构体用于读取材质和纹理信息

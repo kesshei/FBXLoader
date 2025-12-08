@@ -390,44 +390,46 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 	pMeshContainer->pOrigMesh->UnlockAttributeBuffer();
 
 
-	// Materials
-	pMeshContainer->NumMaterials = 10;
-	//pMeshContainer->ppTextures == new LPDIRECT3DTEXTURE9[pMeshContainer->NumMaterials];
-	pMeshContainer->pMaterials = new D3DXMATERIAL[pMeshContainer->NumMaterials];
-	pMeshContainer->pMaterials[0].pTextureFilename = NULL;
-	memset(&pMeshContainer->pMaterials[0].MatD3D, 0, sizeof(D3DMATERIAL9));
-	//memset(pMeshContainer->ppTextures, 0, sizeof(LPDIRECT3DTEXTURE9) * pMeshContainer->NumMaterials);
-
-	Material material = mesh->MatD3Ds[0];
-	MATERIALInfo matInfo = material.MatD3D;
-	std::string pTexture = material.pTexture;
-	pMeshContainer->pMaterials[0].MatD3D.Ambient = D3DXCOLOR(
-		matInfo.Ambient.r,
-		matInfo.Ambient.g,
-		matInfo.Ambient.b,
-		matInfo.Ambient.a);
-	pMeshContainer->pMaterials[0].MatD3D.Diffuse = D3DXCOLOR(
-		matInfo.Diffuse.r,
-		matInfo.Diffuse.g,
-		matInfo.Diffuse.b,
-		matInfo.Diffuse.a);
-	pMeshContainer->pMaterials[0].MatD3D.Emissive = D3DXCOLOR(
-		matInfo.Emissive.r,
-		matInfo.Emissive.g,
-		matInfo.Emissive.b,
-		matInfo.Emissive.a);
-	pMeshContainer->pMaterials[0].MatD3D.Specular = D3DXCOLOR(
-		matInfo.Specular.r,
-		matInfo.Specular.g,
-		matInfo.Specular.b,
-		matInfo.Specular.a);
-	pMeshContainer->pMaterials[0].MatD3D.Power = matInfo.Power;
-
-	if (!pTexture.empty())
+	if (!mesh->MatD3Ds.empty())
 	{
-		if (FAILED(D3DXCreateTextureFromFileA(pD3DDevice, "models/Rudolf_deel.dds", &pMeshContainer->ppTextures)))
+		// Materials
+		pMeshContainer->NumMaterials = 10;
+		//pMeshContainer->ppTextures == new LPDIRECT3DTEXTURE9[pMeshContainer->NumMaterials];
+		pMeshContainer->pMaterials = new D3DXMATERIAL[pMeshContainer->NumMaterials];
+		pMeshContainer->pMaterials[0].pTextureFilename = NULL;
+		memset(&pMeshContainer->pMaterials[0].MatD3D, 0, sizeof(D3DMATERIAL9));
+		//memset(pMeshContainer->ppTextures, 0, sizeof(LPDIRECT3DTEXTURE9) * pMeshContainer->NumMaterials);
+
+		Material material = mesh->MatD3Ds[0];
+		MATERIALInfo matInfo = material.MatD3D;
+		std::string pTexture = material.pTexture;
+		pMeshContainer->pMaterials[0].MatD3D.Ambient = D3DXCOLOR(
+			matInfo.Ambient.r,
+			matInfo.Ambient.g,
+			matInfo.Ambient.b,
+			matInfo.Ambient.a);
+		pMeshContainer->pMaterials[0].MatD3D.Diffuse = D3DXCOLOR(
+			matInfo.Diffuse.r,
+			matInfo.Diffuse.g,
+			matInfo.Diffuse.b,
+			matInfo.Diffuse.a);
+		pMeshContainer->pMaterials[0].MatD3D.Emissive = D3DXCOLOR(
+			matInfo.Emissive.r,
+			matInfo.Emissive.g,
+			matInfo.Emissive.b,
+			matInfo.Emissive.a);
+		pMeshContainer->pMaterials[0].MatD3D.Specular = D3DXCOLOR(
+			matInfo.Specular.r,
+			matInfo.Specular.g,
+			matInfo.Specular.b,
+			matInfo.Specular.a);
+		pMeshContainer->pMaterials[0].MatD3D.Power = matInfo.Power;
+		if (!pTexture.empty())
 		{
-			pMeshContainer->ppTextures = NULL;
+			if (FAILED(D3DXCreateTextureFromFileA(pD3DDevice, "models/Rudolf_deel.dds", &pMeshContainer->ppTextures)))
+			{
+				pMeshContainer->ppTextures = NULL;
+			}
 		}
 	}
 
@@ -454,6 +456,10 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 }
 LPD3DXANIMATIONCONTROLLER getAnimation(FBXModel model)
 {
+	if (model.m_modelData->BoneNameToIndex.empty())
+	{
+		return NULL;
+	}
 	int maxBone = model.m_modelData->BoneNameToIndex.size();
 	int MAX_ANIMATIONSETS = 320;
 	int nTrackNum = 1;
@@ -503,6 +509,10 @@ LPD3DXANIMATIONCONTROLLER getAnimation(FBXModel model)
 }
 void RegisterMatrix(LPD3DXFRAME pFrame, LPD3DXANIMATIONCONTROLLER pAC)
 {
+	if (pAC == NULL)
+	{
+		return;
+	}
 	//	if(pFrame->bAnimation)
 	pAC->RegisterAnimationOutput(pFrame->Name, &pFrame->TransformationMatrix, NULL, NULL, NULL);
 
@@ -529,7 +539,7 @@ HRESULT WINAPI D3DXLoadMeshHierarchyFromFBX(
 		(*ppMeshContainer).push_back((LPD3DXMESHCONTAINER*)pMeshContainer);
 	}
 
-	LPD3DXANIMATIONCONTROLLER p  = getAnimation(model);
+	LPD3DXANIMATIONCONTROLLER p = getAnimation(model);
 	*ppAnimController = p;
 
 	RegisterMatrix(f, p);
@@ -623,7 +633,6 @@ void DrawMeshContainer(IDirect3DDevice9* pd3dDevice, LPD3DXMESHCONTAINER pMeshCo
 //--------------------------------------------------------------------------------------
 void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD3DXMESHCONTAINER*> ppMeshContainer)
 {
-	if (pFrame == NULL) return;
 
 	D3DXFRAME_DERIVED* Frame = (D3DXFRAME_DERIVED*)pFrame;
 
@@ -634,13 +643,29 @@ void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD
 	for (int i = 0; i < ppMeshContainer.size(); i++)
 	{
 		D3DXMESHCONTAINER_DERIVED* pMeshContainer = (D3DXMESHCONTAINER_DERIVED*)ppMeshContainer[i];
-		// 第一步：获取属性表的大小（即子集数量）
-		pMeshContainer->MeshData.pMesh->GetAttributeTable(NULL, &numSubsets);
-		pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[0].MatD3D);
-		pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
-		for (int i = 0; i < (int)numSubsets; i++)
+
+		LPD3DXMESH mesh = pMeshContainer->MeshData.pMesh;
+		if (mesh == NULL)
 		{
-			pMeshContainer->MeshData.pMesh->DrawSubset(i);
+			mesh = pMeshContainer->pOrigMesh;
+		}
+		// 第一步：获取属性表的大小（即子集数量）
+		mesh->GetAttributeTable(NULL, &numSubsets);
+		if (pMeshContainer->pMaterials != NULL)
+		{
+			pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[0].MatD3D);
+			pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
+		}
+		if (numSubsets == 0)
+		{
+			mesh->DrawSubset(0);
+		}
+		else
+		{
+			for (int i = 0; i < (int)numSubsets; i++)
+			{
+				mesh->DrawSubset(i);
+			}
 		}
 	}
 }

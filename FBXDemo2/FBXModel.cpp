@@ -538,7 +538,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 	}
 
 	//获取所有索引缓存信息
-	std::vector<DWORD> indices;
+	//std::vector<DWORD> indices;
 	// 遍历每个面，提取 3 个顶点索引
 	for (int polyIdx = 0; polyIdx < numPolygons; polyIdx++) {
 
@@ -555,22 +555,26 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 		FbxVector4 edge2 = v2 - v0;
 		FbxVector4 normal = edge1.CrossProduct(edge2);
 
-		// 判断绕序（此为YZ平面举例）
-		//if (normal[2] > 0) {
-		//	printf("逆时针 CCW\n");
-		//}
-		//else {
-		//	printf("顺时针 CW\n");
-		//}
+		 //判断绕序（此为YZ平面举例）
+		if (normal[2] > 0) {
+		/*	printf("逆时针 CCW\n");*/
+			pMesh->Indices.push_back(idx0);
+			pMesh->Indices.push_back(idx1);
+			pMesh->Indices.push_back(idx2);
+		}
+		else {
+			/*printf("顺时针 CW\n");*/
+			pMesh->Indices.push_back(idx0);
+			pMesh->Indices.push_back(idx1);
+			pMesh->Indices.push_back(idx2);
+		}
 
-		// 5. 存入修正后的索引
-		indices.push_back(idx0);
-		indices.push_back(idx2);
-		indices.push_back(idx1);
+		//// 5. 存入修正后的索引
+		//indices.push_back(idx0);
+		//indices.push_back(idx2);
+		//indices.push_back(idx1);
 
-		pMesh->Indices.push_back(idx0);
-		pMesh->Indices.push_back(idx2);
-		pMesh->Indices.push_back(idx1);
+
 	}
 
 	// 遍历网格的所有蒙皮控制器（FbxSkin）
