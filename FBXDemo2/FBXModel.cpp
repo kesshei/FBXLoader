@@ -529,7 +529,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 
 		FbxVector2 currentUV = lUVElement->GetDirectArray().GetAt(uvIndex);
 		float u = static_cast<float>(currentUV[0]);
-		float v = 1 - static_cast<float>(currentUV[1]);
+		float v = static_cast<float>(currentUV[1]); //	TODO ¿ÉÄÜÎª1-
 		pMesh->Vertices.push_back(Vertex{
 			dxVertex.x, dxVertex.y, dxVertex.z,
 			u, v,
