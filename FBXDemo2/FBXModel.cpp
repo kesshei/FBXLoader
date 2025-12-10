@@ -652,9 +652,9 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 			vertex.x = dxVertex.x;
 			vertex.y = dxVertex.y;
 			vertex.z = dxVertex.z;
-			// 读取顶点索引
+			// 读取顶点索引 (顺时针 / 逆时针)
 			indicess[vertexCounter] = (vertexCounter - vindex) + (2 - vindex);
-			pMesh->Indices.push_back(indicess[vertexCounter]);
+			pMesh->Indices.push_back(vertexCounter);
 			// 读取法线
 			if (CheckExsitNormal(pFbxMesh))
 			{
@@ -678,7 +678,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 			{
 				FbxVector2 uv1 = FetchMesh_UV(pFbxMesh, vertexCounter, 0);
 				vertex.u = uv1[0];
-				vertex.v = uv1[1];
+				vertex.v = 1 - uv1[1];
 			}
 			//读取UV2
 			if (CheckExsitUV2(pFbxMesh))

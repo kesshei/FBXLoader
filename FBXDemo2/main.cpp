@@ -292,30 +292,30 @@ HRESULT Objects_Init()
 	D3DXLoadMeshFromX(L"WYJ.X", D3DXMESH_MANAGED, g_pd3dDevice, &pAdjBuffer, &pMtrlBuffer, NULL, &g_dwNumMtrls, &g_pMesh);
 
 	// 创建骨骼动画
-	D3DXLoadMeshHierarchyFromFBX("models/box.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
 
 	// 读取材质和纹理数据
 	D3DXMATERIAL* pMtrls = (D3DXMATERIAL*)pMtrlBuffer->GetBufferPointer(); //创建一个D3DXMATERIAL结构体用于读取材质和纹理信息
 	g_pMaterials = new D3DMATERIAL9[g_dwNumMtrls];
 	g_pTextures = new LPDIRECT3DTEXTURE9[g_dwNumMtrls];
 
-	//for (DWORD i = 0; i < g_dwNumMtrls; i++)
-	//{
-	//	//获取材质，并设置一下环境光的颜色值
-	//	g_pMaterials[i] = pMtrls[i].MatD3D;
-	//	g_pMaterials[i].Ambient = g_pMaterials[i].Diffuse;
+	for (DWORD i = 0; i < g_dwNumMtrls; i++)
+	{
+		//获取材质，并设置一下环境光的颜色值
+		g_pMaterials[i] = pMtrls[i].MatD3D;
+		g_pMaterials[i].Ambient = g_pMaterials[i].Diffuse;
 
-	//	//创建一下纹理对象
-	//	g_pTextures[i] = NULL;
-	//	D3DXCreateTextureFromFileA(g_pd3dDevice, pMtrls[i].pTextureFilename, &g_pTextures[i]);
-	//}
+		//创建一下纹理对象
+		g_pTextures[i] = NULL;
+		D3DXCreateTextureFromFileA(g_pd3dDevice, pMtrls[i].pTextureFilename, &g_pTextures[i]);
+	}
 	SAFE_RELEASE(pAdjBuffer)
 		SAFE_RELEASE(pMtrlBuffer)
 
 
 
-	// 创建网格模型
-	D3DXCreateMeshFVF(12, 24, D3DXMESH_MANAGED, D3DFVF_CUSTOMVERTEX2, g_pd3dDevice, &g_pCubeMesh2);
+		// 创建网格模型
+		D3DXCreateMeshFVF(12, 24, D3DXMESH_MANAGED, D3DFVF_CUSTOMVERTEX2, g_pd3dDevice, &g_pCubeMesh2);
 
 	// 填充网格数据
 	CUSTOMVERTEX2* pVertices2 = NULL;
@@ -422,18 +422,18 @@ HRESULT Objects_Init()
 	g_MaterialCylinder.Specular = D3DXCOLOR(0.9f, 0.2f, 0.9f, 0.9f);
 	g_MaterialCylinder.Emissive = D3DXCOLOR(0.0f, 0.0f, 0.9f, 1.0f);
 
-	//// 设置光照  
-	//D3DLIGHT9 light;  
-	//::ZeroMemory(&light, sizeof(light));  
-	//light.Type          = D3DLIGHT_DIRECTIONAL;  
-	//light.Ambient       = D3DXCOLOR(0.7f, 0.7f, 0.7f, 1.0f);  
-	//light.Diffuse       = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);  
-	//light.Specular      = D3DXCOLOR(0.5f, 0.5f, 0.5f, 1.0f);  
-	//light.Direction     = D3DXVECTOR3(1.0f, 0.0f, 0.0f);  
-	//g_pd3dDevice->SetLight(0, &light);  
-	//g_pd3dDevice->LightEnable(0, true);  
-	//g_pd3dDevice->SetRenderState(D3DRS_NORMALIZENORMALS, true);  
-	//g_pd3dDevice->SetRenderState(D3DRS_SPECULARENABLE, true);
+	// 设置光照  
+	D3DLIGHT9 light;
+	::ZeroMemory(&light, sizeof(light));
+	light.Type = D3DLIGHT_DIRECTIONAL;
+	light.Ambient = D3DXCOLOR(0.7f, 0.7f, 0.7f, 1.0f);
+	light.Diffuse = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
+	light.Specular = D3DXCOLOR(0.5f, 0.5f, 0.5f, 1.0f);
+	light.Direction = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+	g_pd3dDevice->SetLight(0, &light);
+	g_pd3dDevice->LightEnable(0, true);
+	g_pd3dDevice->SetRenderState(D3DRS_NORMALIZENORMALS, true);
+	g_pd3dDevice->SetRenderState(D3DRS_SPECULARENABLE, true);
 
 	// 创建并初始化虚拟摄像机
 	g_pCamera = new CameraClass(g_pd3dDevice);
@@ -538,8 +538,8 @@ void Direct3D_Render(HWND hwnd)
 
 	////绘制人物
 	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &g_matWorld);//设置模型的世界矩阵，为绘制做准备
-	
-   // 设置世界变换矩阵
+
+	//设置世界变换矩阵
 	D3DXMATRIX matWorld, Rx, Ry, Rz;
 	D3DXMatrixIdentity(&matWorld);
 	D3DXMatrixRotationX(&Rx, ::timeGetTime() / 1000.0f);    // 绕X轴旋转
@@ -547,6 +547,8 @@ void Direct3D_Render(HWND hwnd)
 	D3DXMatrixRotationZ(&Rz, ::timeGetTime() / 1000.0f);    // 绕Z轴旋转
 	matWorld = Rx * Ry * Rz * matWorld;
 	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+
+
 	////用一个for循环，进行模型的网格各个部分的绘制
 	//for (DWORD i = 0; i < g_dwNumMtrls; i++)
 	//{
@@ -554,12 +556,44 @@ void Direct3D_Render(HWND hwnd)
 	//	g_pd3dDevice->SetTexture(0, g_pTextures[i]);//设置此部分的纹理
 	//	g_pMesh->DrawSubset(i);  //绘制此部分
 	//}
+
+	//g_pd3dDevice->SetRenderState(D3DRS_ZENABLE, false);
+	// 核心：关闭 Alpha 混合（禁止颜色叠加导致的透明）
+	//g_pd3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+
+	//// 额外：重置混合因子（避免残留的混合规则影响）
+	//g_pd3dDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	//g_pd3dDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+
+	//g_pd3dDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_CONSTANT);
+	//g_pd3dDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	//g_pd3dDevice->SetTextureStageState(0, D3DTSS_CONSTANT, 0xFFFFFFFF); // Alpha=1.0
+	//g_pd3dDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 	// 绘制蒙皮网格
 	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
 
-	 // 绘制网格模型
+	// 绘制网格模型
 	//for (int i = 0; i < 3; i++)
 	//{
+	//	// 构造默认材质
+	//	D3DMATERIAL9 defaultMaterial;
+	//	ZeroMemory(&defaultMaterial, sizeof(D3DMATERIAL9)); // 先清零
+
+	//	// 设置默认值
+	//	defaultMaterial.Diffuse.r = 1.0f;
+	//	defaultMaterial.Diffuse.g = 1.0f;
+	//	defaultMaterial.Diffuse.b = 1.0f;
+	//	defaultMaterial.Diffuse.a = 1.0f;
+
+	//	defaultMaterial.Ambient.r = 1.0f;
+	//	defaultMaterial.Ambient.g = 1.0f;
+	//	defaultMaterial.Ambient.b = 1.0f;
+	//	defaultMaterial.Ambient.a = 1.0f;
+
+	//	// Specular/Emissive 默认为0，Power默认为0，无需额外设置
+
+	//	// 应用默认材质到设备
+	//	g_pd3dDevice->SetMaterial(&defaultMaterial);
 	//	g_pd3dDevice->SetTexture(0, g_pTextures2[i]);
 	//	g_pCubeMesh2->DrawSubset(i);
 	//}
