@@ -134,7 +134,7 @@ typedef struct _MESH
 	int VertexCount;
 	int FaceCount;
 	std::vector<Vertex> Vertices;
-	std::vector<DWORD>  Indices;
+	std::vector<WORD>  Indices;
 	//std::vector<DWORD>  Attributes;
 	std::vector<Material>   MatD3Ds;
 	std::map<std::string, Influence> Influences;

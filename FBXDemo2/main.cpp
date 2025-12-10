@@ -138,7 +138,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	{
 		MessageBox(hwnd, _T("Direct3D初始化失败~！"), _T("浅墨的消息窗口"), 0); //使用MessageBox函数，创建一个消息窗口 
 	}
-	PlaySound(L"雅尼 - 兰花.wav", NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);   //循环播放背景音乐
+	//PlaySound(L"雅尼 - 兰花.wav", NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);   //循环播放背景音乐
 
 
 
@@ -684,8 +684,8 @@ void Direct3D_CleanUp()
 {
 
 	//释放COM接口对象
-	for (DWORD i = 0; i < g_dwNumMtrls; i++)
-		SAFE_RELEASE(g_pTextures[i]);
+	//for (DWORD i = 0; i < g_dwNumMtrls; i++)
+	//	SAFE_RELEASE(g_pTextures[i]);
 	SAFE_DELETE(g_pTextures);
 	SAFE_DELETE(g_pMaterials);
 	SAFE_DELETE(g_pDInput);

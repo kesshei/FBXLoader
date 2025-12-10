@@ -627,7 +627,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 		converter.Triangulate(pFbxMesh, true); // 强制三角化
 	}
 
-	// 1. 获取 FBX Mesh 的基础信息
+	// 获取 FBX Mesh 的基础信息
 	const int ControlPointsCount = pFbxMesh->GetControlPointsCount(); // 控制点数量（不重复顶点的数量，也称为控制点）
 	const int numPolygons = pFbxMesh->GetPolygonCount();       // 三角面数量（每个面默认是三角形，需确保 FBX 已三角化）
 	pMesh->VertexCount = numPolygons * 3;//默认
