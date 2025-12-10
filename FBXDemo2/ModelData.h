@@ -105,7 +105,11 @@ typedef struct _MATERIALInfo {
 } MATERIALInfo;
 
 typedef struct _Vertex
-{
+{	// VECTOR3 默认构造（可选，初始化为零向量）
+	_Vertex() : x(0), y(0), z(0), nx(0), ny(0), nz(0), u(0), v(0) {}
+	// 带参数构造（方便赋值）
+	_Vertex(float _x, float _y, float _z, float _nx, float _ny, float _nz, float _u, float _v) :  x(_x), y(_y), z(_z), nx(_nx), ny(_ny), nz(_nz), u(_u), v(_v) {}
+	_Vertex(float _x, float _y, float _z, float _u, float _v) : x(_x), y(_y), z(_z),  u(_u), v(_v) {}
 	float x, y, z;
 	float nx, ny, nz;
 	float u, v;

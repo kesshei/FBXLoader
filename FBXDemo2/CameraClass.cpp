@@ -19,7 +19,7 @@ CameraClass::CameraClass(IDirect3DDevice9 *pd3dDevice)
     m_vRightVector  = D3DXVECTOR3(1.0f, 0.0f, 0.0f);   // 默认右向量与X正半轴重合
     m_vUpVector     = D3DXVECTOR3(0.0f, 1.0f, 0.0f);   // 默认上向量与Y正半轴重合
     m_vLookVector   = D3DXVECTOR3(0.0f, 0.0f, 1.0f);   // 默认观察向量与Z正半轴重合
-    m_vCameraPosition  = D3DXVECTOR3(0.0f, 0.0f, -250.0f);   // 默认摄像机坐标为(0.0f, 0.0f, -250.0f)
+    m_vCameraPosition  = D3DXVECTOR3(0.0f, 0.0f, -20.0f);   // 默认摄像机坐标为(0.0f, 0.0f, -250.0f)
     m_vTargetPosition    = D3DXVECTOR3(0.0f, 0.0f, 0.0f);//默认观察目标位置为(0.0f, 0.0f, 0.0f);
 
 }

@@ -381,7 +381,7 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 
 	// Faces
 	pMeshContainer->pOrigMesh->LockIndexBuffer(0, &pt);
-	memcpy(pt, mesh->Indices.data(), sizeof(WORD) * mesh->FaceCount * 3); // 批量拷贝
+	memcpy(pt, mesh->Indices.data(), sizeof(DWORD) * mesh->VertexCount); // 批量拷贝
 	pMeshContainer->pOrigMesh->UnlockIndexBuffer();
 
 	// Attributes

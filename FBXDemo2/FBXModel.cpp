@@ -475,106 +475,219 @@ LPFRAME FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribut
 	}
 	return pFrame;
 }
-
+bool CheckExsitNormal(const FbxMesh* pFbxMesh)
+{
+	bool exist = false;
+	if (pFbxMesh->GetElementNormalCount() > 0)
+	{
+		const int nMappingMode = pFbxMesh->GetElementNormal(0)->GetMappingMode();
+		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
+		{
+			exist = true;
+		}
+	}
+	return exist;
+}
+bool CheckExsitTangent(const FbxMesh* pFbxMesh)
+{
+	bool exist = false;
+	if (pFbxMesh->GetElementTangentCount() > 0)
+	{
+		const int nMappingMode = pFbxMesh->GetElementTangent(0)->GetMappingMode();
+		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
+		{
+			exist = true;
+		}
+	}
+	return exist;
+}
+bool CheckExsitColor(const FbxMesh* pFbxMesh)
+{
+	bool exist = false;
+	if (pFbxMesh->GetElementVertexColorCount() > 0)
+	{
+		const int nMappingMode = pFbxMesh->GetElementVertexColor(0)->GetMappingMode();
+		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
+		{
+			exist = true;
+		}
+	}
+	return exist;
+}
+bool CheckExsitUV1(const FbxMesh* pFbxMesh)
+{
+	bool exist = false;
+	if (pFbxMesh->GetElementUVCount() > 0)
+	{
+		const int nMappingMode = pFbxMesh->GetElementUV(0)->GetMappingMode();
+		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
+		{
+			exist = true;
+		}
+	}
+	return exist;
+}
+bool CheckExsitUV2(const FbxMesh* pFbxMesh)
+{
+	bool exist = false;
+	if (pFbxMesh->GetElementUVCount() > 1)
+	{
+		const int nMappingMode = pFbxMesh->GetElementUV(1)->GetMappingMode();
+		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
+		{
+			exist = true;
+		}
+	}
+	return exist;
+}
+VECTOR3 FetchMesh_Vertex(FbxMesh* pMesh, int ctrlPointIndex)
+{
+	const FbxVector4* controlPoints = pMesh->GetControlPoints();
+	FbxVector4 currentVertex = controlPoints[ctrlPointIndex];
+	VECTOR3 dxVertex = VECTOR3(
+		static_cast<float>(currentVertex[0]),
+		static_cast<float>(currentVertex[1]),
+		static_cast<float>(currentVertex[2])
+	);
+	return dxVertex;
+}
+VECTOR3 FetchMesh_Normal(FbxMesh* pFbxMesh, int nVertexIndex)
+{
+	FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);
+	const int nReferenceMode = lNormalElement->GetReferenceMode();
+	const FbxLayerElementArrayTemplate<FbxVector4>& kNormalArray = lNormalElement->GetDirectArray();
+	//
+	int nIndex = nVertexIndex;
+	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
+	{
+		const FbxLayerElementArrayTemplate<int>& kIndexArray = lNormalElement->GetIndexArray();
+		nIndex = kIndexArray.GetAt(nVertexIndex);
+	}
+	FbxVector4 pNormal = kNormalArray.GetAt(nIndex);
+	return VECTOR3(pNormal[0], pNormal[1], pNormal[2]);
+}
+VECTOR3 FetchMesh_Tangent(FbxMesh* pFbxMesh, int nVertexIndex)
+{
+	FbxGeometryElementTangent* leTangent = pFbxMesh->GetElementTangent(0);
+	const int nReferenceMode = leTangent->GetReferenceMode();
+	const FbxLayerElementArrayTemplate<FbxVector4>& kTangentArray = leTangent->GetDirectArray();
+	//
+	int nIndex = nVertexIndex;
+	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
+	{
+		const FbxLayerElementArrayTemplate<int>& kIndexArray = leTangent->GetIndexArray();
+		nIndex = kIndexArray.GetAt(nVertexIndex);
+	}
+	FbxVector4 pTangent = kTangentArray.GetAt(nIndex);
+	return VECTOR3(pTangent[0], pTangent[1], pTangent[2]);
+}
+COLORVALUE FetchMesh_Color(FbxMesh* pFbxMesh, int nVertexIndex)
+{
+	FbxGeometryElementVertexColor* leVtxc = pFbxMesh->GetElementVertexColor(0);
+	const int nReferenceMode = leVtxc->GetReferenceMode();
+	FbxLayerElementArrayTemplate<FbxColor>& kColorArray = leVtxc->GetDirectArray();
+	//
+	int nIndex = nVertexIndex;
+	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
+	{
+		FbxLayerElementArrayTemplate<int>& kIndexArray = leVtxc->GetIndexArray();
+		nIndex = kIndexArray.GetAt(nVertexIndex);
+	}
+	FbxColor pColor = kColorArray.GetAt(nIndex);
+	return COLORVALUE(
+		static_cast<float>(pColor.mRed),
+		static_cast<float>(pColor.mGreen),
+		static_cast<float>(pColor.mBlue),
+		static_cast<float>(pColor.mAlpha)
+	);
+}
+FbxVector2 FetchMesh_UV(FbxMesh* pFbxMesh, int nVertexIndex, int nUVIndex)
+{
+	const FbxGeometryElementUV* leUV = pFbxMesh->GetElementUV(nUVIndex);
+	const int nReferenceMode = leUV->GetReferenceMode();
+	const FbxLayerElementArrayTemplate<FbxVector2>& kUVArray = leUV->GetDirectArray();
+	//
+	int nIndex = nVertexIndex;
+	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
+	{
+		const FbxLayerElementArrayTemplate<int>& kIndexArray = leUV->GetIndexArray();
+		nIndex = kIndexArray.GetAt(nVertexIndex);
+	}
+	FbxVector2 pUV = kUVArray.GetAt(nIndex);
+	return pUV;
+}
 LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 {
 	LPMESH pMesh = new MESH();
 	const char* nodeName = pNode->GetName();
 	pMesh->Name = nodeName;
-	FbxMesh* pFbxMesh = (FbxMesh*)pNode->GetNodeAttribute();
+	FbxMesh* pFbxMesh = pNode->GetMesh();
 	if (!pFbxMesh->IsTriangleMesh()) {
 		FbxGeometryConverter converter(pFbxMesh->GetFbxManager());
 		converter.Triangulate(pFbxMesh, true); // 强制三角化
 	}
 
 	// 1. 获取 FBX Mesh 的基础信息
-	const int numVertices = pFbxMesh->GetControlPointsCount(); // 控制点数量（顶点数）
-	const int numPolygons = pFbxMesh->GetPolygonCount();       // 面数量（每个面默认是三角形，需确保 FBX 已三角化）
-	pMesh->VertexCount = numVertices;
+	const int ControlPointsCount = pFbxMesh->GetControlPointsCount(); // 控制点数量（不重复顶点的数量，也称为控制点）
+	const int numPolygons = pFbxMesh->GetPolygonCount();       // 三角面数量（每个面默认是三角形，需确保 FBX 已三角化）
+	pMesh->VertexCount = numPolygons * 3;//默认
 	pMesh->FaceCount = numPolygons;
 
 	const FbxVector4* controlPoints = pFbxMesh->GetControlPoints();
-	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);;
+	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);
 	const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(0);
 
-
-	//获取所有顶点，法线，UV信息
-	for (int index = 0; index < numVertices; index++)
+	int vertexCounter = 0;
+	std::vector<int> indicess(pMesh->VertexCount);
+	for (int index = 0; index < numPolygons; index++)
 	{
-		FbxVector4 currentVertex = controlPoints[index];
-		VECTOR3 dxVertex = VECTOR3(
-			static_cast<float>(currentVertex[0]),
-			static_cast<float>(currentVertex[1]),
-			static_cast<float>(currentVertex[2]));
-
-		long lNormalIndex = index;
-
-		if (lNormalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+		int vertexCountPerFace = pFbxMesh->GetPolygonSize(index);
+		for (int vindex = 0; vindex < vertexCountPerFace; vindex++)
 		{
-			lNormalIndex = lNormalElement->GetIndexArray().GetAt(index);
+			Vertex vertex;
+			int ctrlPointIndex = pFbxMesh->GetPolygonVertex(index, vindex);
+
+			// 读取顶点位置
+			VECTOR3 dxVertex = FetchMesh_Vertex(pFbxMesh, ctrlPointIndex);
+			vertex.x = dxVertex.x;
+			vertex.y = dxVertex.y;
+			vertex.z = dxVertex.z;
+			// 读取顶点索引
+			indicess[vertexCounter] = (vertexCounter - vindex) + (2 - vindex);
+			pMesh->Indices.push_back(indicess[vertexCounter]);
+			// 读取法线
+			if (CheckExsitNormal(pFbxMesh))
+			{
+				VECTOR3	dxNormal = FetchMesh_Normal(pFbxMesh, vertexCounter);
+				vertex.nx = dxNormal.x;
+				vertex.ny = dxNormal.y;
+				vertex.nz = dxNormal.z;
+			}
+			//读取切线
+			if (CheckExsitTangent(pFbxMesh))
+			{
+				FetchMesh_Tangent(pFbxMesh, vertexCounter);
+			}
+			//读取颜色
+			if (CheckExsitColor(pFbxMesh))
+			{
+				FetchMesh_Color(pFbxMesh, vertexCounter);
+			}
+			//读取UV1
+			if (CheckExsitUV1(pFbxMesh))
+			{
+				FbxVector2 uv1 = FetchMesh_UV(pFbxMesh, vertexCounter, 0);
+				vertex.u = uv1[0];
+				vertex.v = uv1[1];
+			}
+			//读取UV2
+			if (CheckExsitUV2(pFbxMesh))
+			{
+				FbxVector2 uv2 = FetchMesh_UV(pFbxMesh, vertexCounter, 1);
+			}
+			pMesh->Vertices.push_back(vertex);
+			vertexCounter++;
 		}
-
-		FbxVector4 currentNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
-		VECTOR3 dxNormal = VECTOR3(
-			static_cast<float>(currentNormal[0]),
-			static_cast<float>(currentNormal[1]),
-			static_cast<float>(currentNormal[2]));
-
-		long uvIndex = index;
-
-		if (lUVElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-		{
-			uvIndex = lUVElement->GetIndexArray().GetAt(index);
-		}
-
-		FbxVector2 currentUV = lUVElement->GetDirectArray().GetAt(uvIndex);
-		float u = static_cast<float>(currentUV[0]);
-		float v = static_cast<float>(currentUV[1]); //	TODO 可能为1-
-		pMesh->Vertices.push_back(Vertex{
-			dxVertex.x, dxVertex.y, dxVertex.z,
-			u, v,
-			dxNormal.x,  dxNormal.y,  dxNormal.z
-			});
-	}
-
-	//获取所有索引缓存信息
-	//std::vector<DWORD> indices;
-	// 遍历每个面，提取 3 个顶点索引
-	for (int polyIdx = 0; polyIdx < numPolygons; polyIdx++) {
-
-		// 提取当前面的 3 个顶点索引
-		DWORD idx0 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 0);
-		DWORD idx1 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 1);
-		DWORD idx2 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 2);
-
-		FbxVector4 v0 = pFbxMesh->GetControlPointAt(0);
-		FbxVector4 v1 = pFbxMesh->GetControlPointAt(1);
-		FbxVector4 v2 = pFbxMesh->GetControlPointAt(2);
-
-		FbxVector4 edge1 = v1 - v0;
-		FbxVector4 edge2 = v2 - v0;
-		FbxVector4 normal = edge1.CrossProduct(edge2);
-
-		 //判断绕序（此为YZ平面举例）
-		if (normal[2] > 0) {
-		/*	printf("逆时针 CCW\n");*/
-			pMesh->Indices.push_back(idx0);
-			pMesh->Indices.push_back(idx1);
-			pMesh->Indices.push_back(idx2);
-		}
-		else {
-			/*printf("顺时针 CW\n");*/
-			pMesh->Indices.push_back(idx0);
-			pMesh->Indices.push_back(idx1);
-			pMesh->Indices.push_back(idx2);
-		}
-
-		//// 5. 存入修正后的索引
-		//indices.push_back(idx0);
-		//indices.push_back(idx2);
-		//indices.push_back(idx1);
-
-
 	}
 
 	// 遍历网格的所有蒙皮控制器（FbxSkin）
