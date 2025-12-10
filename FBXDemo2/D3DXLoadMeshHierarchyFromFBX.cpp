@@ -372,33 +372,10 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 	{
 	}
 	pMeshContainer->MeshData.Type = D3DXMESHTYPE_MESH;
+	
 	HRESULT hr = D3DXCreateMeshFVF(mesh->FaceCount, mesh->VertexCount, D3DXMESH_MANAGED, D3DFVF_PNT, pD3DDevice, &pMeshContainer->pOrigMesh);
-
-
-
-
-
 	// Vertices
 	void* pt;
-	//Vertex* pVertices2 = NULL;
-	//pMeshContainer->pOrigMesh->LockVertexBuffer(0, (void**)&pVertices2);
-	//for (int i = 0; i < mesh->Vertices.size(); i++)
-	//{
-	//	pVertices2[i] = mesh->Vertices[i];
-	//}
-	//pMeshContainer->pOrigMesh->UnlockVertexBuffer();
-
-	// Faces
-	//WORD* pIndices = NULL;
-	//pMeshContainer->pOrigMesh->LockIndexBuffer(0, (void**)&pIndices);
-	//for (int i = 0; i < mesh->Indices.size(); i++)
-	//{
-	//	pIndices[i] = mesh->Indices[i];
-	//}
-	//pMeshContainer->pOrigMesh->UnlockIndexBuffer();
-
-	//// Vertices
-	//void* pt;
 	pMeshContainer->pOrigMesh->LockVertexBuffer(0, &pt);
 	memcpy(pt, mesh->Vertices.data(), sizeof(Vertex) * mesh->Vertices.size()); // ÅúÁ¿¿½±´
 	pMeshContainer->pOrigMesh->UnlockVertexBuffer();
