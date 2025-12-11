@@ -654,29 +654,29 @@ void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD
 		mesh->GetAttributeTable(NULL, &numSubsets);
 		if (pMeshContainer->pMaterials != NULL)
 		{  
-			// 构造默认材质
-			D3DMATERIAL9 defaultMaterial;
-			ZeroMemory(&defaultMaterial, sizeof(D3DMATERIAL9)); // 先清零
-
-			// 设置默认值
-			defaultMaterial.Diffuse.r = 1.0f;
-			defaultMaterial.Diffuse.g = 1.0f;
-			defaultMaterial.Diffuse.b = 1.0f;
-			defaultMaterial.Diffuse.a = 1.0f;
-
-			defaultMaterial.Ambient.r = 1.0f;
-			defaultMaterial.Ambient.g = 1.0f;
-			defaultMaterial.Ambient.b = 1.0f;
-			defaultMaterial.Ambient.a = 1.0f;
-			defaultMaterial.Specular = D3DXCOLOR(0, 0, 0, 1.0f); // 高光也设为不透明
-			defaultMaterial.Emissive = D3DXCOLOR(0, 0, 0, 1.0f); // 自发光不透明
-			// Specular/Emissive 默认为0，Power默认为0，无需额外设置
-
-			// 应用默认材质到设备
-			pd3dDevice->SetMaterial(&defaultMaterial);
-			/*pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[0].MatD3D);*/
+			pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[0].MatD3D);
 			pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
 		}
+		//// 构造默认材质
+		//D3DMATERIAL9 defaultMaterial;
+		//ZeroMemory(&defaultMaterial, sizeof(D3DMATERIAL9)); // 先清零
+
+		//// 设置默认值
+		//defaultMaterial.Diffuse.r = 0.7f;
+		//defaultMaterial.Diffuse.g = 0.7f;
+		//defaultMaterial.Diffuse.b = 0.7f;
+		//defaultMaterial.Diffuse.a = 1.0f;
+
+		//defaultMaterial.Ambient.r = 1.0f;
+		//defaultMaterial.Ambient.g = 1.0f;
+		//defaultMaterial.Ambient.b = 1.0f;
+		//defaultMaterial.Ambient.a = 1.0f;
+		////defaultMaterial.Specular = D3DXCOLOR(0, 0, 0, 1.0f); // 高光也设为不透明
+		////defaultMaterial.Emissive = D3DXCOLOR(0, 0, 0, 1.0f); // 自发光不透明
+		//// Specular/Emissive 默认为0，Power默认为0，无需额外设置
+
+		//// 应用默认材质到设备
+		//pd3dDevice->SetMaterial(&defaultMaterial);
 		if (numSubsets == 0)
 		{
 			mesh->DrawSubset(0);
