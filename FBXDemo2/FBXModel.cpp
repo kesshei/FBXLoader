@@ -621,73 +621,96 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 	LPMESH pMesh = new MESH();
 	const char* nodeName = pNode->GetName();
 	pMesh->Name = nodeName;
-	FbxMesh* pFbxMesh = pNode->GetMesh();
+	FbxMesh* pFbxMesh = (FbxMesh*)pNode->GetNodeAttribute();
 	if (!pFbxMesh->IsTriangleMesh()) {
 		FbxGeometryConverter converter(pFbxMesh->GetFbxManager());
 		converter.Triangulate(pFbxMesh, true); // 强制三角化
 	}
 
-	// 获取 FBX Mesh 的基础信息
-	const int ControlPointsCount = pFbxMesh->GetControlPointsCount(); // 控制点数量（不重复顶点的数量，也称为控制点）
-	const int numPolygons = pFbxMesh->GetPolygonCount();       // 三角面数量（每个面默认是三角形，需确保 FBX 已三角化）
-	pMesh->VertexCount = numPolygons * 3;//默认
+	// 1. 获取 FBX Mesh 的基础信息
+	const int numVertices = pFbxMesh->GetControlPointsCount(); // 控制点数量（顶点数）
+	const int numPolygons = pFbxMesh->GetPolygonCount();       // 面数量（每个面默认是三角形，需确保 FBX 已三角化）
+	pMesh->VertexCount = numVertices;
 	pMesh->FaceCount = numPolygons;
 
 	const FbxVector4* controlPoints = pFbxMesh->GetControlPoints();
-	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);
+	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);;
 	const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(0);
 
-	int vertexCounter = 0;
-	std::vector<int> indicess(pMesh->VertexCount);
-	for (int index = 0; index < numPolygons; index++)
-	{
-		int vertexCountPerFace = pFbxMesh->GetPolygonSize(index);
-		for (int vindex = 0; vindex < vertexCountPerFace; vindex++)
-		{
-			Vertex vertex;
-			int ctrlPointIndex = pFbxMesh->GetPolygonVertex(index, vindex);
 
-			// 读取顶点位置
-			VECTOR3 dxVertex = FetchMesh_Vertex(pFbxMesh, ctrlPointIndex);
-			vertex.x = dxVertex.x;
-			vertex.y = dxVertex.y;
-			vertex.z = dxVertex.z;
-			// 读取顶点索引 (顺时针 / 逆时针)
-			indicess[vertexCounter] = (vertexCounter - vindex) + (2 - vindex);
-			pMesh->Indices.push_back(vertexCounter);
-			// 读取法线
-			if (CheckExsitNormal(pFbxMesh))
-			{
-				VECTOR3	dxNormal = FetchMesh_Normal(pFbxMesh, vertexCounter);
-				vertex.nx = dxNormal.x;
-				vertex.ny = dxNormal.y;
-				vertex.nz = dxNormal.z;
-			}
-			//读取切线
-			if (CheckExsitTangent(pFbxMesh))
-			{
-				FetchMesh_Tangent(pFbxMesh, vertexCounter);
-			}
-			//读取颜色
-			if (CheckExsitColor(pFbxMesh))
-			{
-				FetchMesh_Color(pFbxMesh, vertexCounter);
-			}
-			//读取UV1
-			if (CheckExsitUV1(pFbxMesh))
-			{
-				FbxVector2 uv1 = FetchMesh_UV(pFbxMesh, vertexCounter, 0);
-				vertex.u = uv1[0];
-				vertex.v = 1 - uv1[1];
-			}
-			//读取UV2
-			if (CheckExsitUV2(pFbxMesh))
-			{
-				FbxVector2 uv2 = FetchMesh_UV(pFbxMesh, vertexCounter, 1);
-			}
-			pMesh->Vertices.push_back(vertex);
-			vertexCounter++;
+	//获取所有顶点，法线，UV信息
+	for (int index = 0; index < numVertices; index++)
+	{
+		FbxVector4 currentVertex = controlPoints[index];
+		VECTOR3 dxVertex = VECTOR3(
+			static_cast<float>(currentVertex[0]),
+			static_cast<float>(currentVertex[1]),
+			static_cast<float>(currentVertex[2]));
+		//pMesh->Indices.push_back(index);
+		long lNormalIndex = index;
+
+		if (lNormalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+		{
+			lNormalIndex = lNormalElement->GetIndexArray().GetAt(index);
 		}
+
+		FbxVector4 currentNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
+		VECTOR3 dxNormal = VECTOR3(
+			static_cast<float>(currentNormal[0]),
+			static_cast<float>(currentNormal[1]),
+			static_cast<float>(currentNormal[2]));
+
+		long uvIndex = index;
+
+		if (lUVElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+		{
+			uvIndex = lUVElement->GetIndexArray().GetAt(index);
+		}
+
+		FbxVector2 currentUV = lUVElement->GetDirectArray().GetAt(uvIndex);
+		float u = static_cast<float>(currentUV[0]);
+		float v = static_cast<float>(currentUV[1]);
+		pMesh->Vertices.push_back(Vertex{
+			dxVertex.x, dxVertex.y, dxVertex.z,
+			u, v,
+			dxNormal.x,  dxNormal.y,  dxNormal.z
+			});
+	}
+
+	//获取所有索引缓存信息
+	std::vector<DWORD> indices;
+	// 遍历每个面，提取 3 个顶点索引
+	for (int polyIdx = 0; polyIdx < numPolygons; polyIdx++) {
+
+		// 提取当前面的 3 个顶点索引
+		DWORD idx0 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 0);
+		DWORD idx1 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 1);
+		DWORD idx2 = (DWORD)pFbxMesh->GetPolygonVertex(polyIdx, 2);
+
+		FbxVector4 v0 = pFbxMesh->GetControlPointAt(0);
+		FbxVector4 v1 = pFbxMesh->GetControlPointAt(1);
+		FbxVector4 v2 = pFbxMesh->GetControlPointAt(2);
+
+		FbxVector4 edge1 = v1 - v0;
+		FbxVector4 edge2 = v2 - v0;
+		FbxVector4 normal = edge1.CrossProduct(edge2);
+
+		// 判断绕序（此为YZ平面举例）
+		//if (normal[2] > 0) {
+		//	printf("逆时针 CCW\n");
+		//}
+		//else {
+		//	printf("顺时针 CW\n");
+		//}
+
+		// 5. 存入修正后的索引
+		indices.push_back(idx0);
+		indices.push_back(idx2);
+		indices.push_back(idx1);
+
+		pMesh->Indices.push_back(idx0);
+		pMesh->Indices.push_back(idx1);
+		pMesh->Indices.push_back(idx2);
 	}
 
 	// 遍历网格的所有蒙皮控制器（FbxSkin）
@@ -781,6 +804,171 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 
 	return pMesh;
 }
+//LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
+//{
+//	LPMESH pMesh = new MESH();
+//	const char* nodeName = pNode->GetName();
+//	pMesh->Name = nodeName;
+//	FbxMesh* pFbxMesh = pNode->GetMesh();
+//	if (!pFbxMesh->IsTriangleMesh()) {
+//		FbxGeometryConverter converter(pFbxMesh->GetFbxManager());
+//		converter.Triangulate(pFbxMesh, true); // 强制三角化
+//	}
+//
+//	// 获取 FBX Mesh 的基础信息
+//	const int ControlPointsCount = pFbxMesh->GetControlPointsCount(); // 控制点数量（不重复顶点的数量，也称为控制点）
+//	const int numPolygons = pFbxMesh->GetPolygonCount();       // 三角面数量（每个面默认是三角形，需确保 FBX 已三角化）
+//	pMesh->VertexCount = numPolygons * 3;//默认
+//	pMesh->FaceCount = numPolygons;
+//
+//	const FbxVector4* controlPoints = pFbxMesh->GetControlPoints();
+//	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);
+//	const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(0);
+//
+//	int vertexCounter = 0;
+//	std::vector<int> indicess(pMesh->VertexCount);
+//	for (int index = 0; index < numPolygons; index++)
+//	{
+//		int vertexCountPerFace = pFbxMesh->GetPolygonSize(index);
+//		for (int vindex = 0; vindex < vertexCountPerFace; vindex++)
+//		{
+//			Vertex vertex;
+//			int ctrlPointIndex = pFbxMesh->GetPolygonVertex(index, vindex);
+//
+//			// 读取顶点位置
+//			VECTOR3 dxVertex = FetchMesh_Vertex(pFbxMesh, ctrlPointIndex);
+//			vertex.x = dxVertex.x;
+//			vertex.y = dxVertex.y;
+//			vertex.z = dxVertex.z;
+//			// 读取顶点索引 (顺时针 / 逆时针)
+//			indicess[vertexCounter] = (vertexCounter - vindex) + (2 - vindex);
+//			pMesh->Indices.push_back(vertexCounter);
+//			// 读取法线
+//			if (CheckExsitNormal(pFbxMesh))
+//			{
+//				VECTOR3	dxNormal = FetchMesh_Normal(pFbxMesh, vertexCounter);
+//				vertex.nx = dxNormal.x;
+//				vertex.ny = dxNormal.y;
+//				vertex.nz = dxNormal.z;
+//			}
+//			//读取切线
+//			if (CheckExsitTangent(pFbxMesh))
+//			{
+//				FetchMesh_Tangent(pFbxMesh, vertexCounter);
+//			}
+//			//读取颜色
+//			if (CheckExsitColor(pFbxMesh))
+//			{
+//				FetchMesh_Color(pFbxMesh, vertexCounter);
+//			}
+//			//读取UV1
+//			if (CheckExsitUV1(pFbxMesh))
+//			{
+//				FbxVector2 uv1 = FetchMesh_UV(pFbxMesh, vertexCounter, 0);
+//				vertex.u = uv1[0];
+//				vertex.v = 1 - uv1[1];
+//			}
+//			//读取UV2
+//			if (CheckExsitUV2(pFbxMesh))
+//			{
+//				FbxVector2 uv2 = FetchMesh_UV(pFbxMesh, vertexCounter, 1);
+//			}
+//			pMesh->Vertices.push_back(vertex);
+//			vertexCounter++;
+//		}
+//	}
+//
+//	// 遍历网格的所有蒙皮控制器（FbxSkin）
+//	int count = pFbxMesh->GetDeformerCount(FbxDeformer::eSkin);
+//	for (int skinIdx = 0; skinIdx < pFbxMesh->GetDeformerCount(FbxDeformer::eSkin); skinIdx++)
+//	{
+//
+//		FbxSkin* pSkin = FbxCast<FbxSkin>(pFbxMesh->GetDeformer(skinIdx, FbxDeformer::eSkin));
+//		if (!pSkin) continue;
+//
+//		std::cout << "找到蒙皮控制器，包含骨骼簇数：" << pSkin->GetClusterCount() << std::endl;
+//
+//		// 遍历每个骨骼簇（FbxCluster = 一根骨骼 + 受影响顶点 + 权重）
+//		for (int clusterIdx = 0; clusterIdx < pSkin->GetClusterCount(); clusterIdx++)
+//		{
+//			Influence influence;
+//			FbxCluster* pCluster = pSkin->GetCluster(clusterIdx);
+//			const char* pBoneName = pCluster->GetLink()->GetName();
+//			const int lIndexCount = pCluster->GetControlPointIndicesCount();
+//			const int* lIndices = pCluster->GetControlPointIndices();
+//			const double* lWeights = pCluster->GetControlPointWeights();
+//
+//			influence.count = lIndexCount;
+//
+//			for (int i = 0; i < lIndexCount; i++)
+//			{
+//				int vertexIdx = lIndices[i];
+//				float weight = static_cast<float>(lWeights[i]);
+//
+//				influence.Vertices.push_back(vertexIdx);
+//				influence.Weights.push_back(weight);
+//				/*		std::cout << "vertex：" << vertexIdx << "weight：" << weight << std::endl;*/
+//			}
+//			pMesh->Influences[pBoneName] = influence;
+//		}
+//		break;//默认只获取一个
+//	}
+//	//获取材质和贴图信息
+//	FbxNode* node = pFbxMesh->GetNode();
+//	int materialCount = node->GetMaterialCount();
+//
+//	for (int m = 0; m < materialCount; ++m) {
+//		Material mat;
+//		FbxSurfaceMaterial* material = node->GetMaterial(m);
+//
+//		// 常见的标准材质类型
+//		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
+//			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;
+//			// 可访问 Diffuse、Specular 等属性
+//			// 漫反射颜色 Diffuse
+//			FbxDouble3 diffuseColor = phong->Diffuse.Get();
+//			// 高光颜色 Specular
+//			FbxDouble3 specularColor = phong->Specular.Get();
+//			// 环境色 Ambient
+//			FbxDouble3 ambientColor = phong->Ambient.Get();
+//			// 发光色 Emissive
+//			FbxDouble3 emissiveColor = phong->Emissive.Get();
+//			// 高光指数 Shininess
+//			double shininess = phong->Shininess.Get();
+//			// 透明度获取
+//			float opacity = 1.0f - phong->TransparencyFactor.Get(); // 透明度是反向的
+//
+//
+//			mat.MatD3D.Diffuse = COLORVALUE(diffuseColor[0], diffuseColor[1], diffuseColor[2]);
+//			mat.MatD3D.Specular = COLORVALUE(specularColor[0], specularColor[1], specularColor[2]);
+//			mat.MatD3D.Ambient = COLORVALUE(ambientColor[0], ambientColor[1], ambientColor[2]);
+//			mat.MatD3D.Emissive = COLORVALUE(emissiveColor[0], emissiveColor[1], emissiveColor[2]);
+//			mat.MatD3D.Power = (float)shininess;
+//			mat.MatD3D.Opacity = opacity;
+//
+//			printf("Diffuse: %.2f %.2f %.2f\n", diffuseColor[0], diffuseColor[1], diffuseColor[2]);
+//			printf("Specular: %.2f %.2f %.2f\n", specularColor[0], specularColor[1], specularColor[2]);
+//			printf("Shininess: %.2f\n", shininess);
+//
+//			FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+//			int textureCount = prop.GetSrcObjectCount<FbxTexture>();
+//			for (int t = 0; t < textureCount; ++t) {
+//				FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
+//				if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
+//					FbxFileTexture* fileTex = (FbxFileTexture*)texture;
+//					// 获取贴图文件路径
+//					const char* texPath = fileTex->GetFileName();
+//					printf("Diffuse Texture: %s\n", texPath);
+//					mat.pTexture = texPath;
+//					break;//默认只取第一张贴图
+//				}
+//			}
+//			pMesh->MatD3Ds.push_back(mat);
+//		}
+//	}
+//
+//	return pMesh;
+//}
 
 LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 {

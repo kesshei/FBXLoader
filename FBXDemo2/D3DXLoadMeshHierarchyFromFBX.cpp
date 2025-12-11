@@ -646,13 +646,12 @@ void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD
 		D3DXMESHCONTAINER_DERIVED* pMeshContainer = (D3DXMESHCONTAINER_DERIVED*)ppMeshContainer[i];
 
 		LPD3DXMESH mesh = pMeshContainer->MeshData.pMesh;
-		if (mesh != NULL)
+		if (mesh == NULL)
 		{
 			mesh = pMeshContainer->pOrigMesh;
 		}
 		// 第一步：获取属性表的大小（即子集数量）
 		mesh->GetAttributeTable(NULL, &numSubsets);
-		numSubsets = 0;
 		if (pMeshContainer->pMaterials != NULL)
 		{  
 			// 构造默认材质
@@ -686,6 +685,7 @@ void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD
 		{
 			for (int i = 0; i < (int)numSubsets; i++)
 			{
+				pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
 				mesh->DrawSubset(i);
 			}
 		}
