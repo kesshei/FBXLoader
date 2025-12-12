@@ -292,7 +292,7 @@ HRESULT Objects_Init()
 	D3DXLoadMeshFromX(L"WYJ.X", D3DXMESH_MANAGED, g_pd3dDevice, &pAdjBuffer, &pMtrlBuffer, NULL, &g_dwNumMtrls, &g_pMesh);
 
 	// 创建骨骼动画
-	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/box.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
 
 	// 读取材质和纹理数据
 	D3DXMATERIAL* pMtrls = (D3DXMATERIAL*)pMtrlBuffer->GetBufferPointer(); //创建一个D3DXMATERIAL结构体用于读取材质和纹理信息
@@ -539,14 +539,14 @@ void Direct3D_Render(HWND hwnd)
 	////绘制人物
 	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &g_matWorld);//设置模型的世界矩阵，为绘制做准备
 
-	//设置世界变换矩阵
-	D3DXMATRIX matWorld, Rx, Ry, Rz;
-	D3DXMatrixIdentity(&matWorld);
-	D3DXMatrixRotationX(&Rx, ::timeGetTime() / 1000.0f);    // 绕X轴旋转
-	D3DXMatrixRotationY(&Ry, ::timeGetTime() / 1000.0f);    // 绕Y轴旋转
-	D3DXMatrixRotationZ(&Rz, ::timeGetTime() / 1000.0f);    // 绕Z轴旋转
-	matWorld = Rx * Ry * Rz * matWorld;
-	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+	////设置世界变换矩阵
+	//D3DXMATRIX matWorld, Rx, Ry, Rz;
+	//D3DXMatrixIdentity(&matWorld);
+	//D3DXMatrixRotationX(&Rx, ::timeGetTime() / 1000.0f);    // 绕X轴旋转
+	//D3DXMatrixRotationY(&Ry, ::timeGetTime() / 1000.0f);    // 绕Y轴旋转
+	//D3DXMatrixRotationZ(&Rz, ::timeGetTime() / 1000.0f);    // 绕Z轴旋转
+	//matWorld = Rx * Ry * Rz * matWorld;
+	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
 
 
 	////用一个for循环，进行模型的网格各个部分的绘制
