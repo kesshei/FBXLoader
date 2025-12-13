@@ -292,7 +292,7 @@ HRESULT Objects_Init()
 	D3DXLoadMeshFromX(L"WYJ.X", D3DXMESH_MANAGED, g_pd3dDevice, &pAdjBuffer, &pMtrlBuffer, NULL, &g_dwNumMtrls, &g_pMesh);
 
 	// 创建骨骼动画
-	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/pet_test.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
 
 	// 读取材质和纹理数据
 	D3DXMATERIAL* pMtrls = (D3DXMATERIAL*)pMtrlBuffer->GetBufferPointer(); //创建一个D3DXMATERIAL结构体用于读取材质和纹理信息
@@ -516,7 +516,26 @@ void Direct3D_Update(HWND hwnd)
 	ShowCursor(false);		//隐藏鼠标光标
 }
 
+// 1. 构造FBX→Direct3D坐标系修正矩阵（核心）
+D3DXMATRIX GetFBXToD3DMatrix()
+{
+	// 方式1：沿X轴旋转-90°（推荐，适配99%的FBX模型）
+	D3DXMATRIX matRotateX;
+	D3DXMatrixRotationX(&matRotateX, -D3DX_PI / 2.0f); // -90° 弧度
 
+	// 方式2：翻转Z轴（备选，若方式1效果不对则用这个）
+	// D3DXMATRIX matScaleZ;
+	// D3DXMatrixScaling(&matScaleZ, 1.0f, 1.0f, -1.0f); // 翻转Z轴
+
+	// 最终修正矩阵（可叠加平移/缩放适配模型大小）
+	D3DXMATRIX matWorld = matRotateX;
+	// 可选：平移模型到世界中心（避免模型偏移）
+	D3DXMATRIX matTranslate;
+	D3DXMatrixTranslation(&matTranslate, 0.0f, 0.0f, 0.0f); // 按需调整
+	matWorld *= matTranslate;
+
+	return matWorld;
+}
 //-----------------------------------【Direct3D_Render( )函数】-------------------------------
 //	描述：使用Direct3D进行渲染
 //--------------------------------------------------------------------------------------------------
@@ -596,7 +615,11 @@ void Direct3D_Render(HWND hwnd)
 	//	g_pd3dDevice->SetTexture(0, g_pTextures2[i]);
 	//	g_pCubeMesh2->DrawSubset(i);
 	//}
+		// 步骤1：构造修正矩阵
+	D3DXMATRIX matFBXToD3D = GetFBXToD3DMatrix();
 
+	// 步骤2：设置World矩阵（核心：将修正矩阵传入）
+	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matFBXToD3D);
 		// 绘制蒙皮网格
 	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
 
