@@ -24,11 +24,11 @@ bool FBXModel::Load(std::string modelFile)
 	{
 		return false;
 	}
-	//result = ConvertToStandardScene(l_FbxManager, l_Scene);
-	//if (!result)
-	//{
-	//	return false;
-	//}
+	result = ConvertToStandardScene(l_FbxManager, l_Scene);
+	if (!result)
+	{
+		return false;
+	}
 
 	//开始准备解析模型资源
 	LPModelData modelData = FetchScene(l_Scene);
@@ -233,6 +233,13 @@ bool FBXModel::ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene)
 		OurAxisSystem.ConvertScene(pScene);
 	}
 
+	//FbxAxisSystem OurAxisSystem(FbxAxisSystem::eDirectX);
+	//FbxAxisSystem SceneAxisSystem = pScene->GetGlobalSettings().GetAxisSystem();
+	//if (SceneAxisSystem != OurAxisSystem)
+	//{
+	//	OurAxisSystem.ConvertScene(pScene);
+	//}
+
 	// Convert Unit System to what is used in this example, if needed
 	FbxSystemUnit SceneSystemUnit = pScene->GetGlobalSettings().GetSystemUnit();
 	if (SceneSystemUnit.GetScaleFactor() != 1.0)
@@ -244,6 +251,7 @@ bool FBXModel::ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene)
 	FbxGeometryConverter lGeomConverter(pManager);
 	try {
 		lGeomConverter.Triangulate(pScene, /*replace*/true);
+		lGeomConverter.SplitMeshesPerMaterial(pScene, true);
 	}
 	catch (std::runtime_error) {
 		FBXSDK_printf("Scene integrity verification failed.\n");

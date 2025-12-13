@@ -292,7 +292,7 @@ HRESULT Objects_Init()
 	D3DXLoadMeshFromX(L"WYJ.X", D3DXMESH_MANAGED, g_pd3dDevice, &pAdjBuffer, &pMtrlBuffer, NULL, &g_dwNumMtrls, &g_pMesh);
 
 	// 创建骨骼动画
-	D3DXLoadMeshHierarchyFromFBX("models/box.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
 
 	// 读取材质和纹理数据
 	D3DXMATERIAL* pMtrls = (D3DXMATERIAL*)pMtrlBuffer->GetBufferPointer(); //创建一个D3DXMATERIAL结构体用于读取材质和纹理信息
@@ -569,8 +569,7 @@ void Direct3D_Render(HWND hwnd)
 	//g_pd3dDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
 	//g_pd3dDevice->SetTextureStageState(0, D3DTSS_CONSTANT, 0xFFFFFFFF); // Alpha=1.0
 	//g_pd3dDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
-	// 绘制蒙皮网格
-	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
+
 
 	// 绘制网格模型
 	//for (int i = 0; i < 3; i++)
@@ -598,14 +597,19 @@ void Direct3D_Render(HWND hwnd)
 	//	g_pCubeMesh2->DrawSubset(i);
 	//}
 
-	//// 绘制草坪
-	//D3DXMATRIX matWorld;
-	//D3DXMatrixTranslation(&matWorld, 0.0f, 0.0f, 0.0f);
-	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
-	//g_pd3dDevice->SetTexture(0, g_pTexture);
-	//g_pd3dDevice->SetStreamSource(0, g_pVertexBuffer, 0, sizeof(CUSTOMVERTEX));
-	//g_pd3dDevice->SetFVF(D3DFVF_CUSTOMVERTEX);
-	//g_pd3dDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+		// 绘制蒙皮网格
+	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
+
+	// 绘制草坪
+	D3DXMATRIX matWorld;
+	D3DXMatrixTranslation(&matWorld, 0.0f, 0.0f, 0.0f);
+	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+	g_pd3dDevice->SetTexture(0, g_pTexture);
+	g_pd3dDevice->SetStreamSource(0, g_pVertexBuffer, 0, sizeof(CUSTOMVERTEX));
+	g_pd3dDevice->SetFVF(D3DFVF_CUSTOMVERTEX);
+	g_pd3dDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+
+
 
 	////绘制柱子
 	//D3DXMATRIX TransMatrix, RotMatrix, FinalMatrix;
