@@ -745,7 +745,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 	for (int m = 0; m < materialCount; ++m) {
 		Material mat;
 		FbxSurfaceMaterial* material = node->GetMaterial(m);
-
+		 
 		// 常见的标准材质类型
 		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
 			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;
@@ -774,22 +774,25 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 			printf("Diffuse: %.2f %.2f %.2f\n", diffuseColor[0], diffuseColor[1], diffuseColor[2]);
 			printf("Specular: %.2f %.2f %.2f\n", specularColor[0], specularColor[1], specularColor[2]);
 			printf("Shininess: %.2f\n", shininess);
-
-			FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-			int textureCount = prop.GetSrcObjectCount<FbxTexture>();
-			for (int t = 0; t < textureCount; ++t) {
-				FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
-				if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
-					FbxFileTexture* fileTex = (FbxFileTexture*)texture;
-					// 获取贴图文件路径
-					const char* texPath = fileTex->GetFileName();
-					printf("Diffuse Texture: %s\n", texPath);
-					mat.pTexture = texPath;
-					break;//默认只取第一张贴图
-				}
-			}
-			pMesh->MatD3Ds.push_back(mat);
 		}
+
+		FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+		int textureCount = prop.GetSrcObjectCount<FbxTexture>();
+		for (int t = 0; t < textureCount; ++t) {
+			FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
+			if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
+				FbxFileTexture* fileTex = (FbxFileTexture*)texture;
+				// 5. 解析贴图的混合模式（渲染方式）
+				FbxTexture::EBlendMode fbxBlendMode = fileTex->GetBlendMode();
+				// 获取贴图文件路径
+				const char* texPath = fileTex->GetFileName();
+				printf("Diffuse Texture: %s\n", texPath);
+				mat.pTexture = texPath;
+				break;//默认只取第一张贴图
+			}
+		}
+
+		pMesh->MatD3Ds.push_back(mat);
 	}
 
 	return pMesh;
