@@ -457,7 +457,7 @@ LPFRAME FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribut
 	boneIndex += 1;
 	pFrame = new FRAME;
 	pFrame->Name = lName;
-	pFrame->TransformationMatrix = _fbxToMatrix(lLocal);
+	pFrame->TransformationMatrix = _fbxToMatrix(lGlobal);
 	pFrame->ParentBoneIndex = parentIndex;
 	pFrame->BoneIndex = boneIndex;
 
@@ -703,6 +703,12 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 		Vertex value = pair.second;
 		pMesh->Vertices.push_back(value);
 	}
+	FbxAMatrix matGeometryTransform;
+	const FbxVector4 lT = pNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+	const FbxVector4 lR = pNode->GetGeometricRotation(FbxNode::eSourcePivot);
+	const FbxVector4 lS = pNode->GetGeometricScaling(FbxNode::eSourcePivot);
+	matGeometryTransform = FbxAMatrix(lT, lR, lS);
+
 	// 遍历网格的所有蒙皮控制器（FbxSkin）
 	int count = pFbxMesh->GetDeformerCount(FbxDeformer::eSkin);
 	for (int skinIdx = 0; skinIdx < pFbxMesh->GetDeformerCount(FbxDeformer::eSkin); skinIdx++)
@@ -723,6 +729,17 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 			const int* lIndices = pCluster->GetControlPointIndices();
 			const double* lWeights = pCluster->GetControlPointWeights();
 
+			FbxAMatrix transformMatrix;
+			FbxAMatrix transformLinkMatrix;
+			FbxAMatrix globalBindposeInverseMatrix;
+			// The transformation of the mesh at binding time
+			pCluster->GetTransformMatrix(transformMatrix);
+			// The transformation of the cluster(joint) at binding time from joint space to world space
+			pCluster->GetTransformLinkMatrix(transformLinkMatrix);
+			//transformLinkMatrix = pBoneNode->EvaluateGlobalTransform();
+			globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * matGeometryTransform;
+
+			influence.BoneSpaceToModelSpace = _fbxToMatrix(globalBindposeInverseMatrix);
 			influence.count = lIndexCount;
 
 			for (int i = 0; i < lIndexCount; i++)
@@ -745,7 +762,7 @@ LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
 	for (int m = 0; m < materialCount; ++m) {
 		Material mat;
 		FbxSurfaceMaterial* material = node->GetMaterial(m);
-		 
+
 		// 常见的标准材质类型
 		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
 			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;

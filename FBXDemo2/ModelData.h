@@ -119,7 +119,8 @@ typedef struct _Influence
 {
 	int count;
 	std::vector<unsigned long> Vertices;
-	std::vector<float> Weights;
+	std::vector<float>         Weights;
+	MATRIX	                   BoneSpaceToModelSpace;
 }Influence;
 
 typedef struct _Material

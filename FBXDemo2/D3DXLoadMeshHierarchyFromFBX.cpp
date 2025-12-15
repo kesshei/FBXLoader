@@ -417,26 +417,26 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 		Material material = mesh->MatD3Ds[0];
 		MATERIALInfo matInfo = material.MatD3D;
 		std::string pTexture = material.pTexture;
-		if (matInfo.Ambient.r == 0 && matInfo.Ambient.g == 0 &&matInfo.Ambient.b == 0 && 
+		if (matInfo.Ambient.r == 0 && matInfo.Ambient.g == 0 && matInfo.Ambient.b == 0 &&
 			matInfo.Diffuse.r == 0 && matInfo.Diffuse.g == 0 && matInfo.Diffuse.b == 0)
 		{
-			pMeshContainer->pMaterials[0].MatD3D.Ambient = D3DXCOLOR(1.0,1.0,1.0,1.0);
+			pMeshContainer->pMaterials[0].MatD3D.Ambient = D3DXCOLOR(1.0, 1.0, 1.0, 1.0);
 			pMeshContainer->pMaterials[0].MatD3D.Diffuse = D3DXCOLOR(0.7, 0.7, 0.7, 1.0);
 			pMeshContainer->pMaterials[0].MatD3D.Emissive = D3DXCOLOR(0, 0, 0, 1.0);
 			pMeshContainer->pMaterials[0].MatD3D.Specular = D3DXCOLOR(0, 0, 0, 1.0);
 		}
 		else
 		{
-			pMeshContainer->pMaterials[0].MatD3D.Ambient = D3DXCOLOR(matInfo.Ambient.r,matInfo.Ambient.g,matInfo.Ambient.b,matInfo.Ambient.a);
-			pMeshContainer->pMaterials[0].MatD3D.Diffuse = D3DXCOLOR(matInfo.Diffuse.r,matInfo.Diffuse.g,matInfo.Diffuse.b,matInfo.Diffuse.a);
-			pMeshContainer->pMaterials[0].MatD3D.Emissive = D3DXCOLOR(matInfo.Emissive.r,matInfo.Emissive.g,matInfo.Emissive.b,matInfo.Emissive.a);
-			pMeshContainer->pMaterials[0].MatD3D.Specular = D3DXCOLOR(matInfo.Specular.r,matInfo.Specular.g,matInfo.Specular.b,matInfo.Specular.a);
+			pMeshContainer->pMaterials[0].MatD3D.Ambient = D3DXCOLOR(matInfo.Ambient.r, matInfo.Ambient.g, matInfo.Ambient.b, matInfo.Ambient.a);
+			pMeshContainer->pMaterials[0].MatD3D.Diffuse = D3DXCOLOR(matInfo.Diffuse.r, matInfo.Diffuse.g, matInfo.Diffuse.b, matInfo.Diffuse.a);
+			pMeshContainer->pMaterials[0].MatD3D.Emissive = D3DXCOLOR(matInfo.Emissive.r, matInfo.Emissive.g, matInfo.Emissive.b, matInfo.Emissive.a);
+			pMeshContainer->pMaterials[0].MatD3D.Specular = D3DXCOLOR(matInfo.Specular.r, matInfo.Specular.g, matInfo.Specular.b, matInfo.Specular.a);
 			pMeshContainer->pMaterials[0].MatD3D.Power = matInfo.Power;
 		}
 		if (!pTexture.empty())
 		{
 			std::string name = "models/" + getFileName(pTexture);
-			
+
 			if (FAILED(D3DXCreateTextureFromFileA(pD3DDevice, name.c_str(), &pMeshContainer->ppTextures)))
 			{
 				pMeshContainer->ppTextures = NULL;
@@ -631,8 +631,8 @@ void DrawMeshContainer(IDirect3DDevice9* pd3dDevice, LPD3DXMESHCONTAINER pMeshCo
 				// lookup the material used for this subset of faces
 				if ((AttribIdPrev != pBoneComb[iAttrib].AttribId) || (AttribIdPrev == UNUSED32))
 				{
-					/*			pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[pBoneComb[iAttrib].AttribId].MatD3D);
-								pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);*/
+					pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[pBoneComb[iAttrib].AttribId].MatD3D);
+					pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
 					AttribIdPrev = pBoneComb[iAttrib].AttribId;
 				}
 
