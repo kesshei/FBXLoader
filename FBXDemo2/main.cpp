@@ -635,7 +635,7 @@ void Direct3D_Render(HWND hwnd, FLOAT fTimeDelta)
 	// 步骤2：设置World矩阵（核心：将修正矩阵传入）
 	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matFBXToD3D);
 
-	g_pAnimController->AdvanceTime(1+ fTimeDelta, NULL);
+	g_pAnimController->AdvanceTime(fTimeDelta, NULL);
 
 	UpdateFrameMatrices(g_pFrameRoot, &matFBXToD3D);
 
