@@ -189,6 +189,7 @@ typedef struct _KEY_QUATERNION
 typedef struct _AnimationKeyFrame
 {
 	FLOAT Time;
+	int keyframe;   //第几帧
 	VECTOR3      Translation;
 	QUATERNION   Rotation;
 	//VECTOR3      Scale; //默认不用这个
@@ -214,6 +215,7 @@ typedef struct _AnimationClip
 {
 	std::string Name;
 	float duration;            // 动画总时长（秒）
+	int keyframes;              //帧数
 	//std::vector<AnimationKeyFrame>      AnimationKeys;
 	std::map<std::string, std::vector<AnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
 }AnimationClip, * LPAnimationClip;

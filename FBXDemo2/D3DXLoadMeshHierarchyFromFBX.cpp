@@ -315,7 +315,7 @@ LPD3DXFRAME CopyD3DXFrame(LPFRAME pSrcFrame, LPD3DXFRAME pParent = nullptr) {
 
 	// 2. 拷贝基础属性
 	//pDstFrame->Name = ConstCharToLPSTR(pSrcFrame->Name);                // 拷贝名称
-	pDstFrame->TransformationMatrix = ToD3DXMATRIX(pSrcFrame->TransformationMatrix);        // 拷贝变换矩阵
+	//pDstFrame->TransformationMatrix = ToD3DXMATRIX(pSrcFrame->TransformationMatrix);        // 拷贝变换矩阵
 
 	// 3. 拷贝网格容器（深度拷贝）
 	//pDstFrame->pMeshContainer = CopyMeshContainer(pSrcFrame->pMeshContainer);
@@ -372,7 +372,7 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 	{
 	}
 	pMeshContainer->MeshData.Type = D3DXMESHTYPE_MESH;
-	
+
 	HRESULT hr = D3DXCreateMeshFVF(mesh->FaceCount, mesh->VertexCount, D3DXMESH_MANAGED, D3DFVF_PNT, pD3DDevice, &pMeshContainer->pOrigMesh);
 	// Vertices
 	void* pt;
@@ -485,18 +485,19 @@ LPD3DXANIMATIONCONTROLLER getAnimation(FBXModel model)
 		for (int i = 0; i < frames.size(); i++)
 		{
 			AnimationKeyFrame f = frames[i];
-			D3DXKEY_QUATERNION RotationKey;
-			RotationKey.Time = f.Time;
-			RotationKey.Value.x = f.Rotation.x;
-			RotationKey.Value.y = f.Rotation.y;
-			RotationKey.Value.z = f.Rotation.z;
-			RotationKey.Value.w = f.Rotation.w;
 
 			D3DXKEY_VECTOR3 TranslateKey;
 			TranslateKey.Time = f.Time;
 			TranslateKey.Value.x = f.Rotation.x;
 			TranslateKey.Value.y = f.Rotation.y;
 			TranslateKey.Value.z = f.Rotation.z;
+
+			D3DXKEY_QUATERNION RotationKey;
+			RotationKey.Time = f.Time;
+			RotationKey.Value.x = f.Rotation.x;
+			RotationKey.Value.y = f.Rotation.y;
+			RotationKey.Value.z = f.Rotation.z;
+			RotationKey.Value.w = f.Rotation.w;
 
 			RotationKeys.push_back(RotationKey);
 			TranslateKeys.push_back(TranslateKey);
@@ -508,6 +509,7 @@ LPD3DXANIMATIONCONTROLLER getAnimation(FBXModel model)
 	pAnimSet->Release();
 	return m_pAnimController;
 }
+
 void RegisterMatrix(LPD3DXFRAME pFrame, LPD3DXANIMATIONCONTROLLER pAC)
 {
 	if (pAC == NULL)
@@ -544,7 +546,7 @@ HRESULT WINAPI D3DXLoadMeshHierarchyFromFBX(
 	*ppAnimController = p;
 
 	RegisterMatrix(f, p);
-
+	SetupBoneMatrixPointers(f, f);
 	return S_OK;
 }
 //--------------------------------------------------------------------------------------
@@ -553,81 +555,135 @@ HRESULT WINAPI D3DXLoadMeshHierarchyFromFBX(
 //--------------------------------------------------------------------------------------
 void DrawMeshContainer(IDirect3DDevice9* pd3dDevice, LPD3DXMESHCONTAINER pMeshContainerBase, LPD3DXFRAME pFrameBase)
 {
-	//D3DXMESHCONTAINER_DERIVED* pMeshContainer = (D3DXMESHCONTAINER_DERIVED*)pMeshContainerBase;
-	//D3DXFRAME_DERIVED* pFrame = (D3DXFRAME_DERIVED*)pFrameBase;
-	//UINT iMaterial;
-	//UINT NumBlend;
-	//UINT iAttrib;
-	//DWORD AttribIdPrev;
-	//LPD3DXBONECOMBINATION pBoneComb;
+	D3DXMESHCONTAINER_DERIVED* pMeshContainer = (D3DXMESHCONTAINER_DERIVED*)pMeshContainerBase;
+	D3DXFRAME_DERIVED* pFrame = (D3DXFRAME_DERIVED*)pFrameBase;
+	UINT iMaterial;
+	UINT NumBlend;
+	UINT iAttrib;
+	DWORD AttribIdPrev;
+	LPD3DXBONECOMBINATION pBoneComb;
 
-	//UINT iMatrixIndex;
-	//D3DXMATRIXA16 matTemp;
-	//D3DCAPS9 d3dCaps;
-	//pd3dDevice->GetDeviceCaps(&d3dCaps);
+	UINT iMatrixIndex;
+	D3DXMATRIXA16 matTemp;
+	D3DCAPS9 d3dCaps;
+	pd3dDevice->GetDeviceCaps(&d3dCaps);
 
-	//// first check for skinning
-	//if (pMeshContainer->pSkinInfo != NULL)
-	//{
-	//	AttribIdPrev = UNUSED32;
-	//	pBoneComb = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombinationBuf->GetBufferPointer());
+	// first check for skinning
+	if (pMeshContainer->pSkinInfo != NULL)
+	{
+		AttribIdPrev = UNUSED32;
+		pBoneComb = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombinationBuf->GetBufferPointer());
 
-	//	// Draw using default vtx processing of the device (typically HW)
-	//	for (iAttrib = 0; iAttrib < pMeshContainer->NumAttributeGroups; iAttrib++)
-	//	{
-	//		NumBlend = 0;
-	//		for (DWORD i = 0; i < pMeshContainer->NumInfl; ++i)
-	//		{
-	//			if (pBoneComb[iAttrib].BoneId[i] != UINT_MAX)
-	//			{
-	//				NumBlend = i;
-	//			}
-	//		}
+		// Draw using default vtx processing of the device (typically HW)
+		for (iAttrib = 0; iAttrib < pMeshContainer->NumAttributeGroups; iAttrib++)
+		{
+			NumBlend = 0;
+			//for (DWORD i = 0; i < pMeshContainer->NumInfl; ++i)
+			//{
+			//	if (pBoneComb[iAttrib].BoneId[i] != UINT_MAX)
+			//	{
+			//		NumBlend = i;
+			//	}
+			//}
 
-	//		if (d3dCaps.MaxVertexBlendMatrices >= NumBlend + 1)
-	//		{
-	//			// first calculate the world matrices for the current set of blend weights and get the accurate count of the number of blends
-	//			for (DWORD i = 0; i < pMeshContainer->NumInfl; ++i)
-	//			{
-	//				iMatrixIndex = pBoneComb[iAttrib].BoneId[i];
-	//				if (iMatrixIndex != UINT_MAX)
-	//				{
-	//					D3DXMatrixMultiply(&matTemp, &pMeshContainer->pBoneOffsetMatrices[iMatrixIndex],
-	//						pMeshContainer->ppBoneMatrixPtrs[iMatrixIndex]);
-	//					pd3dDevice->SetTransform(D3DTS_WORLDMATRIX(i), &matTemp);
-	//				}
-	//			}
+			if (d3dCaps.MaxVertexBlendMatrices >= NumBlend + 1)
+			{
+				// first calculate the world matrices for the current set of blend weights and get the accurate count of the number of blends
+				//for (DWORD i = 0; i < pMeshContainer->NumInfl; ++i)
+				//{
+				//	iMatrixIndex = pBoneComb[iAttrib].BoneId[i];
+				//	if (iMatrixIndex != UINT_MAX)
+				//	{
+				//		D3DXMatrixMultiply(&matTemp, &pMeshContainer->pBoneOffsetMatrices[iMatrixIndex],pMeshContainer->ppBoneMatrixPtrs[iMatrixIndex]);
+				//		pd3dDevice->SetTransform(D3DTS_WORLDMATRIX(i), &matTemp);
+				//	}
+				//}
 
-	//			pd3dDevice->SetRenderState(D3DRS_VERTEXBLEND, NumBlend);
+				pd3dDevice->SetRenderState(D3DRS_VERTEXBLEND, NumBlend);
 
-	//			// lookup the material used for this subset of faces
-	//			if ((AttribIdPrev != pBoneComb[iAttrib].AttribId) || (AttribIdPrev == UNUSED32))
-	//			{
-	//				pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[pBoneComb[iAttrib].AttribId].MatD3D);
-	//				pd3dDevice->SetTexture(0, pMeshContainer->ppTextures[pBoneComb[iAttrib].AttribId]);
-	//				AttribIdPrev = pBoneComb[iAttrib].AttribId;
-	//			}
+				// lookup the material used for this subset of faces
+				if ((AttribIdPrev != pBoneComb[iAttrib].AttribId) || (AttribIdPrev == UNUSED32))
+				{
+					pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[pBoneComb[iAttrib].AttribId].MatD3D);
+					pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
+					AttribIdPrev = pBoneComb[iAttrib].AttribId;
+				}
 
-	//			// draw the subset now that the correct material and matrices are loaded
-	//			pMeshContainer->MeshData.pMesh->DrawSubset(iAttrib);
-	//		}
-	//	}
-	//	pd3dDevice->SetRenderState(D3DRS_VERTEXBLEND, 0);
-	//}
-	//else  // standard mesh, just draw it after setting material properties
-	//{
-	//	pd3dDevice->SetTransform(D3DTS_WORLD, &pFrame->CombinedTransformationMatrix);
+				// draw the subset now that the correct material and matrices are loaded
+				pMeshContainer->MeshData.pMesh->DrawSubset(iAttrib);
+			}
+		}
+		pd3dDevice->SetRenderState(D3DRS_VERTEXBLEND, 0);
+	}
+	else  // standard mesh, just draw it after setting material properties
+	{
+		pd3dDevice->SetTransform(D3DTS_WORLD, &pFrame->CombinedTransformationMatrix);
 
-	//	for (iMaterial = 0; iMaterial < pMeshContainer->NumMaterials; iMaterial++)
-	//	{
-	//		pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[iMaterial].MatD3D);
-	//		pd3dDevice->SetTexture(0, pMeshContainer->ppTextures[iMaterial]);
-	//		pMeshContainer->MeshData.pMesh->DrawSubset(iMaterial);
-	//	}
-	//}
+		for (iMaterial = 0; iMaterial < pMeshContainer->NumMaterials; iMaterial++)
+		{
+			pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[iMaterial].MatD3D);
+			pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
+			pMeshContainer->MeshData.pMesh->DrawSubset(iMaterial);
+		}
+	}
 }
 
+//--------------------------------------------------------------------------------------
+// Name: SetupBoneMatrixPointers()
+// Desc: 设置好各级框架的组合变换矩阵。
+//--------------------------------------------------------------------------------------
+HRESULT SetupBoneMatrixPointers(LPD3DXFRAME pFrameBase, LPD3DXFRAME pFrameRoot)
+{
+	if (pFrameBase->pMeshContainer != NULL)
+	{
+		D3DXFRAME_DERIVED* pFrame = NULL;
+		D3DXMESHCONTAINER_DERIVED* pMeshContainer = (D3DXMESHCONTAINER_DERIVED*)pFrameBase->pMeshContainer;
 
+		// if there is a SkinMesh_Tiny, then setup the bone matrices
+		if (pMeshContainer->pSkinInfo != NULL)
+		{
+			UINT cBones = pMeshContainer->pSkinInfo->GetNumBones();
+			pMeshContainer->ppBoneMatrixPtrs = new D3DXMATRIX * [cBones];
+			for (UINT iBone = 0; iBone < cBones; iBone++)
+			{
+				pFrame = (D3DXFRAME_DERIVED*)D3DXFrameFind(pFrameRoot, pMeshContainer->pSkinInfo->GetBoneName(iBone));
+				if (pFrame == NULL) return E_FAIL;
+
+				pMeshContainer->ppBoneMatrixPtrs[iBone] = &pFrame->CombinedTransformationMatrix;
+			}
+		}
+	}
+
+	if (pFrameBase->pFrameSibling != NULL)
+	{
+		if (FAILED(SetupBoneMatrixPointers(pFrameBase->pFrameSibling, pFrameRoot)))
+			return E_FAIL;
+	}
+
+	if (pFrameBase->pFrameFirstChild != NULL)
+	{
+		if (FAILED(SetupBoneMatrixPointers(pFrameBase->pFrameFirstChild, pFrameRoot)))
+			return E_FAIL;
+	}
+
+	return S_OK;
+}
+
+//--------------------------------------------------------------------------------------
+// Name: UpdateFrameMatrics()
+// Desc: 更新框架中的变换矩阵
+//--------------------------------------------------------------------------------------
+void UpdateFrameMatrices(LPD3DXFRAME pFrameBase, LPD3DXMATRIX pParentMatrix)
+{
+	if (pFrameBase == NULL || pParentMatrix == NULL) return;
+	D3DXFRAME_DERIVED* pFrame = (D3DXFRAME_DERIVED*)pFrameBase;
+
+	// 将当前骨骼的相对于父骨骼的偏移矩阵作累积运算
+	D3DXMatrixMultiply(&pFrame->CombinedTransformationMatrix, &pFrame->TransformationMatrix, pParentMatrix);
+
+	UpdateFrameMatrices(pFrame->pFrameSibling, pParentMatrix);                              // 更新兄弟骨骼
+	UpdateFrameMatrices(pFrame->pFrameFirstChild, &pFrame->CombinedTransformationMatrix);   // 更新子骨骼
+}
 //--------------------------------------------------------------------------------------
 // Name: DrawFrame()
 // Desc: 绘制骨骼
@@ -637,7 +693,25 @@ void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD
 
 	D3DXFRAME_DERIVED* Frame = (D3DXFRAME_DERIVED*)pFrame;
 
-	//pd3dDevice->SetTransform(D3DTS_WORLD, &Frame->CombinedTransformationMatrix);
+	pd3dDevice->SetTransform(D3DTS_WORLD, &Frame->CombinedTransformationMatrix);
+	// 假设 m_pMesh 是已加载的 LPD3DXMESH 对象
+	DWORD numSubsets = 0;
+
+	for (int i = 0; i < ppMeshContainer.size(); i++)
+	{
+		DrawMeshContainer(pd3dDevice, (D3DXMESHCONTAINER_DERIVED*)ppMeshContainer[i], pFrame);
+	}
+}
+// --------------------------------------------------------------------------------------
+	// Name: DrawFrame()
+	// Desc: 绘制骨骼
+	//--------------------------------------------------------------------------------------
+void DrawFrame2(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD3DXMESHCONTAINER*> ppMeshContainer)
+{
+
+	D3DXFRAME_DERIVED* Frame = (D3DXFRAME_DERIVED*)pFrame;
+
+	pd3dDevice->SetTransform(D3DTS_WORLD, &Frame->CombinedTransformationMatrix);
 	// 假设 m_pMesh 是已加载的 LPD3DXMESH 对象
 	DWORD numSubsets = 0;
 
@@ -653,7 +727,7 @@ void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD
 		// 第一步：获取属性表的大小（即子集数量）
 		mesh->GetAttributeTable(NULL, &numSubsets);
 		if (pMeshContainer->pMaterials != NULL)
-		{  
+		{
 			pd3dDevice->SetMaterial(&pMeshContainer->pMaterials[0].MatD3D);
 			pd3dDevice->SetTexture(0, pMeshContainer->ppTextures);
 		}

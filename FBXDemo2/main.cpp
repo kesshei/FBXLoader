@@ -99,7 +99,7 @@ LPDIRECT3DTEXTURE9  g_pTextures2[3] = { 0 }; // 网格的纹理
 LRESULT CALLBACK		WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 HRESULT						Direct3D_Init(HWND hwnd, HINSTANCE hInstance);
 HRESULT						Objects_Init();
-void								Direct3D_Render(HWND hwnd);
+void								Direct3D_Render(HWND hwnd, FLOAT fTimeDelta);
 void								Direct3D_Update(HWND hwnd);
 void								Direct3D_CleanUp();
 float								Get_FPS();
@@ -161,8 +161,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		}
 		else
 		{
+			static FLOAT fLastTime = (float)::timeGetTime();
+			static FLOAT fCurrTime = (float)::timeGetTime();
+			static FLOAT fTimeDelta = 0.0f;
+			fCurrTime = (float)::timeGetTime();
+			fTimeDelta = (fCurrTime - fLastTime) / 1000.0f;
+			fLastTime = fCurrTime;
 			Direct3D_Update(hwnd);         //调用更新函数，进行画面的更新
-			Direct3D_Render(hwnd);			//调用渲染函数，进行画面的渲染			
+			Direct3D_Render(hwnd, fTimeDelta);			//调用渲染函数，进行画面的渲染			
 		}
 	}
 
@@ -180,7 +186,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	switch (message)				//switch语句开始
 	{
 	case WM_PAINT:					 // 客户区重绘消息
-		Direct3D_Render(hwnd);          //调用Direct3D_Render函数，进行画面的绘制
+		Direct3D_Render(hwnd, 0);          //调用Direct3D_Render函数，进行画面的绘制
 		ValidateRect(hwnd, NULL);   // 更新客户区的显示
 		break;									//跳出该switch语句
 
@@ -293,6 +299,14 @@ HRESULT Objects_Init()
 
 	// 创建骨骼动画
 	D3DXLoadMeshHierarchyFromFBX("models/pet_test.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	LPD3DXANIMATIONSET pAnimationSet = NULL;
+	int dwNewTrack = 0;
+	g_pAnimController->GetAnimationSetByName("Take 001", &pAnimationSet);
+	g_pAnimController->SetTrackAnimationSet(dwNewTrack, pAnimationSet);
+	g_pAnimController->SetTrackEnable(dwNewTrack, TRUE);    // 启用新轨道
+	g_pAnimController->KeyTrackSpeed(dwNewTrack, 1.0f, 0, 0.25f, D3DXTRANSITION_LINEAR);  // 改变新轨道的速率
+	g_pAnimController->KeyTrackWeight(dwNewTrack, 1.0f, 0, 0.25f, D3DXTRANSITION_LINEAR);  // 改变新轨道的权重
+
 
 	// 读取材质和纹理数据
 	D3DXMATERIAL* pMtrls = (D3DXMATERIAL*)pMtrlBuffer->GetBufferPointer(); //创建一个D3DXMATERIAL结构体用于读取材质和纹理信息
@@ -539,7 +553,7 @@ D3DXMATRIX GetFBXToD3DMatrix()
 //-----------------------------------【Direct3D_Render( )函数】-------------------------------
 //	描述：使用Direct3D进行渲染
 //--------------------------------------------------------------------------------------------------
-void Direct3D_Render(HWND hwnd)
+void Direct3D_Render(HWND hwnd, FLOAT fTimeDelta)
 {
 	//--------------------------------------------------------------------------------------
 	// 【Direct3D渲染五步曲之一】：清屏操作
@@ -620,7 +634,12 @@ void Direct3D_Render(HWND hwnd)
 
 	// 步骤2：设置World矩阵（核心：将修正矩阵传入）
 	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matFBXToD3D);
-		// 绘制蒙皮网格
+
+	g_pAnimController->AdvanceTime(1+ fTimeDelta, NULL);
+
+	UpdateFrameMatrices(g_pFrameRoot, &matFBXToD3D);
+
+	// 绘制蒙皮网格
 	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
 
 	// 绘制草坪

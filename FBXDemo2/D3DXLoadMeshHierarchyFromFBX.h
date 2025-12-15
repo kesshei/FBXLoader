@@ -105,4 +105,14 @@ void DrawMeshContainer(IDirect3DDevice9* pd3dDevice, LPD3DXMESHCONTAINER pMeshCo
 // Desc: 绘制骨骼
 //--------------------------------------------------------------------------------------
 void DrawFrame(IDirect3DDevice9* pd3dDevice, LPD3DXFRAME pFrame, std::vector<LPD3DXMESHCONTAINER*> ppMeshContainer);
+//--------------------------------------------------------------------------------------
+// Name: SetupBoneMatrixPointers()
+// Desc: 设置好各级框架的组合变换矩阵。
+//--------------------------------------------------------------------------------------
+HRESULT SetupBoneMatrixPointers(LPD3DXFRAME pFrameBase, LPD3DXFRAME pFrameRoot);
+//--------------------------------------------------------------------------------------
+// Name: UpdateFrameMatrics()
+// Desc: 更新框架中的变换矩阵
+//--------------------------------------------------------------------------------------
+void UpdateFrameMatrices(LPD3DXFRAME pFrameBase, LPD3DXMATRIX pParentMatrix);
 #endif

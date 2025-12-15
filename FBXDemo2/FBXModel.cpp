@@ -807,6 +807,15 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 	const char* name = pAnimStack->GetName();
 	pAnimClip->Name = name;
 
+	FbxTimeSpan kTimeSpan = pAnimStack->GetLocalTimeSpan();
+	FbxTime kAnimDuration = kTimeSpan.GetDuration();
+	const float fAnimLength = (float)kAnimDuration.GetSecondDouble();
+	const int nFrameCount = (int)kAnimDuration.GetFrameCount(FbxTime::eFrames30);
+	const int nFrameCount2 = (int)kAnimDuration.GetFrameCount();
+	pAnimClip->duration = fAnimLength;
+	pAnimClip->keyframes = nFrameCount;
+
+
 	FbxAnimLayer* animLayer = pAnimStack->GetSrcObject<FbxAnimLayer>(0);
 	// 遍历每个骨骼节点，提取平移/旋转/缩放的关键帧
 	for (int boneIdx = 0; boneIdx < modelData->BoneNameToIndex.size(); boneIdx++) {
@@ -831,6 +840,9 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 		FbxAnimCurve* syCurve = boneNode->LclScaling.GetCurve(animLayer, "Y");
 		FbxAnimCurve* szCurve = boneNode->LclScaling.GetCurve(animLayer, "Z");
 
+		int a = txCurve ? txCurve->KeyGetCount() : -1;
+		int b = rxCurve ? rxCurve->KeyGetCount() : -1;
+		int c = sxCurve ? sxCurve->KeyGetCount() : -1;
 		// 假设所有通道关键帧数量相同，取最大关键帧数量
 		int keyCount = std::max({
 			txCurve ? txCurve->KeyGetCount() : 0,
@@ -849,6 +861,7 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 			else if (rxCurve) time = rxCurve->KeyGetTime(k);
 			else if (sxCurve) time = sxCurve->KeyGetTime(k);
 			keyFrame.Time = (float)time.GetSecondDouble();
+			keyFrame.keyframe = k;
 
 			// 平移插值
 			keyFrame.Translation.x = txCurve ? txCurve->Evaluate(time) : 0.0f;
@@ -862,6 +875,10 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 			//FbxQuaternion fbxQuat;
 			//fbxQuat.eul(yaw, pitch, roll);
 			//D3DXQuaternionRotationYawPitchRoll(&frame.rotate, ry, rx, rz);
+			//keyFrame.Rotation.x = rxCurve ? rxCurve->Evaluate(time) : 0.0f;
+			//keyFrame.Rotation.y = rxCurve ? rxCurve->Evaluate(time) : 0.0f;
+			//keyFrame.Rotation.z = rxCurve ? rxCurve->Evaluate(time) : 0.0f;
+			//keyFrame.Rotation.w = 1;
 			keyFrame.Rotation.x = rx;
 			keyFrame.Rotation.y = ry;
 			keyFrame.Rotation.z = rz;
@@ -871,6 +888,17 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 			//keyFrame.Scale.x = sxCurve ? sxCurve->Evaluate(time) : 1.0f;
 			//keyFrame.Scale.y = syCurve ? syCurve->Evaluate(time) : 1.0f;
 			//keyFrame.Scale.z = szCurve ? szCurve->Evaluate(time) : 1.0f;
+			const FbxAMatrix& kGlobalTran = boneNode->EvaluateLocalTransform(time);
+			const FbxVector4 T = kGlobalTran.GetT();
+			const FbxVector4 R = kGlobalTran.GetR();
+			keyFrame.Translation.x = (float)T[0];
+			keyFrame.Translation.x = (float)T[1];
+			keyFrame.Translation.x = (float)T[2];
+
+			keyFrame.Rotation.x = (float)R[0];
+			keyFrame.Rotation.y = (float)R[1];
+			keyFrame.Rotation.z = (float)R[2];
+			keyFrame.Rotation.w = (float)R[3];
 
 			keyFrames.push_back(keyFrame);
 		}
