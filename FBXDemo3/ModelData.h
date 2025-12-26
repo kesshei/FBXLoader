@@ -120,7 +120,7 @@ typedef struct _Influence
 	int count;
 	std::vector<unsigned long> Vertices;
 	std::vector<float>         Weights;
-	MATRIX	                   BoneSpaceToModelSpace;
+	MATRIX	                   BoneSpaceToModelSpace_BoneOffset;
 }Influence;
 
 typedef struct _Material
@@ -132,13 +132,15 @@ typedef struct _Material
 typedef struct _MESH
 {
 	std::string Name;
+
 	int VertexCount;
 	int FaceCount;
 	std::vector<Vertex> Vertices;
 	std::vector<WORD>  Indices;//默认dx支持16位索引
 	//std::vector<DWORD>  Attributes;
-	std::vector<Material>   MatD3Ds;
+	Material   Material;
 	std::map<std::string, Influence> Influences;
+	std::map<unsigned int, std::vector<float>> VerticeInfluences;
 }MESH, * LPMESH;
 
 typedef struct _MESHCONTAINER
@@ -224,9 +226,9 @@ typedef struct _AnimationClip
 
 typedef struct _ModelData
 {
-	LPFRAME                       Bone;           // 骨骼列表 默认一个骨骼对象
-	std::map<int, std::string>    BoneNameToIndex; // 骨骼名称到索引的映射
-	LPAnimationClip               Animation;      // 动画列表 默认一个动画对象
+	LPFRAME                       Bone;             // 骨骼列表 默认一个骨骼对象
+	std::map<int, std::string>    BoneNameToIndex;  // 骨骼名称到索引的映射
+	LPAnimationClip               Animation;        // 动画列表 默认一个动画对象
 	std::vector<LPMESH>           Meshs;            // 网格（带蒙皮信息） 默认至少一个网格对象
 }ModelData, * LPModelData;
 

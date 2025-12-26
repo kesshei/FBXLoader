@@ -12,250 +12,18 @@ FBXModel::~FBXModel()
 
 bool FBXModel::Load(std::string modelFile)
 {
-	FbxManager* l_FbxManager = NULL;
-	FbxScene* l_Scene = NULL;
-	bool result = InitializeSdkObjects(l_FbxManager, l_Scene);
-	if (!result)
+	Assimp::Importer importer;
+	const aiScene* scene = importer.ReadFile(modelFile, 0);
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
+		std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
 		return false;
 	}
-	result = LoadScene(l_FbxManager, l_Scene, modelFile);
-	if (!result)
-	{
-		return false;
-	}
-	result = ConvertToStandardScene(l_FbxManager, l_Scene);
-	if (!result)
-	{
-		return false;
-	}
-
 	//开始准备解析模型资源
-	LPModelData modelData = FetchScene(l_Scene);
+	LPModelData modelData = FetchScene(scene);
 	if (modelData != NULL)
 	{
 		m_modelData = modelData;
-	}
-
-	DestroySdkObjects(l_FbxManager);
-	return true;
-}
-
-bool FBXModel::InitializeSdkObjects(FbxManager*& pManager, FbxScene*& pScene)
-{
-	//The first thing to do is to create the FBX Manager which is the object allocator for almost all the classes in the SDK
-	pManager = FbxManager::Create();
-	if (!pManager)
-	{
-		FBXSDK_printf("Error: Unable to create FBX Manager!\n");
-		return false;
-	}
-	FBXSDK_printf("Autodesk FBX SDK version %s\n", pManager->GetVersion());
-
-	//Create an IOSettings object. This object holds all import/export settings.
-	FbxIOSettings* ios = FbxIOSettings::Create(pManager, IOSROOT);
-	pManager->SetIOSettings(ios);
-
-#ifndef FBXSDK_ENV_WINSTORE
-	//Load plugins from the executable directory (optional)
-	FbxString lPath = FbxGetApplicationDirectory();
-	pManager->LoadPluginsDirectory(lPath.Buffer());
-#endif
-
-	//Create an FBX scene. This object holds most objects imported/exported from/to files.
-	pScene = FbxScene::Create(pManager, "My Scene");
-	if (!pScene)
-	{
-		FBXSDK_printf("Error: Unable to create FBX scene!\n");
-		return false;
-	}
-	return true;
-}
-
-bool FBXModel::DestroySdkObjects(FbxManager* pManager)
-{
-	//Delete the FBX Manager. All the objects that have been allocated using the FBX Manager and that haven't been explicitly destroyed are also automatically destroyed.
-	if (pManager) pManager->Destroy();
-	return true;
-}
-
-bool FBXModel::LoadScene(FbxManager* pManager, FbxDocument* pScene, std::string modelFile)
-{
-	int lFileMajor, lFileMinor, lFileRevision;
-	int lSDKMajor, lSDKMinor, lSDKRevision;
-	//int lFileFormat = -1;
-	int lAnimStackCount;
-	bool lStatus;
-	char lPassword[1024];
-
-	// Get the file version number generate by the FBX SDK.
-	FbxManager::GetFileFormatVersion(lSDKMajor, lSDKMinor, lSDKRevision);
-
-	// Create an importer.
-	FbxImporter* lImporter = FbxImporter::Create(pManager, "");
-
-	// Initialize the importer by providing a filename.
-	const bool lImportStatus = lImporter->Initialize(modelFile.c_str(), -1, pManager->GetIOSettings());
-	lImporter->GetFileVersion(lFileMajor, lFileMinor, lFileRevision);
-
-	if (!lImportStatus)
-	{
-		FbxString error = lImporter->GetStatus().GetErrorString();
-		FBXSDK_printf("Call to FbxImporter::Initialize() failed.\n");
-		FBXSDK_printf("Error returned: %s\n\n", error.Buffer());
-
-		if (lImporter->GetStatus().GetCode() == FbxStatus::eInvalidFileVersion)
-		{
-			FBXSDK_printf("FBX file format version for this FBX SDK is %d.%d.%d\n", lSDKMajor, lSDKMinor, lSDKRevision);
-			FBXSDK_printf("FBX file format version for file '%s' is %d.%d.%d\n\n", modelFile, lFileMajor, lFileMinor, lFileRevision);
-		}
-
-		return false;
-	}
-
-	FBXSDK_printf("FBX file format version for this FBX SDK is %d.%d.%d\n", lSDKMajor, lSDKMinor, lSDKRevision);
-
-	if (lImporter->IsFBX())
-	{
-		FBXSDK_printf("FBX file format version for file '%s' is %d.%d.%d\n\n", modelFile, lFileMajor, lFileMinor, lFileRevision);
-
-		// From this point, it is possible to access animation stack information without
-		// the expense of loading the entire file.
-
-		FBXSDK_printf("Animation Stack Information\n");
-
-		lAnimStackCount = lImporter->GetAnimStackCount();
-
-		FBXSDK_printf("    Number of Animation Stacks: %d\n", lAnimStackCount);
-		FBXSDK_printf("    Current Animation Stack: \"%s\"\n", lImporter->GetActiveAnimStackName().Buffer());
-		FBXSDK_printf("\n");
-
-		for (int i = 0; i < lAnimStackCount; i++)
-		{
-			FbxTakeInfo* lTakeInfo = lImporter->GetTakeInfo(i);
-
-			FBXSDK_printf("    Animation Stack %d\n", i);
-			FBXSDK_printf("         Name: \"%s\"\n", lTakeInfo->mName.Buffer());
-			FBXSDK_printf("         Description: \"%s\"\n", lTakeInfo->mDescription.Buffer());
-
-			// Change the value of the import name if the animation stack should be imported 
-			// under a different name.
-			FBXSDK_printf("         Import Name: \"%s\"\n", lTakeInfo->mImportName.Buffer());
-
-			// Set the value of the import state to false if the animation stack should be not
-			// be imported. 
-			FBXSDK_printf("         Import State: %s\n", lTakeInfo->mSelect ? "true" : "false");
-			FBXSDK_printf("\n");
-		}
-
-		// Set the import states. By default, the import states are always set to 
-		// true. The code below shows how to change these states.
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_MATERIAL, true);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_TEXTURE, true);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_LINK, true);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_SHAPE, true);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_GOBO, true);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_ANIMATION, true);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_GLOBAL_SETTINGS, true);
-	}
-
-	// Import the scene.
-	lStatus = lImporter->Import(pScene);
-	if (lStatus == false && lImporter->GetStatus() == FbxStatus::ePasswordError)
-	{
-		FBXSDK_printf("Please enter password: ");
-
-		lPassword[0] = '\0';
-
-		FBXSDK_CRT_SECURE_NO_WARNING_BEGIN
-			scanf("%s", lPassword);
-		FBXSDK_CRT_SECURE_NO_WARNING_END
-
-			FbxString lString(lPassword);
-
-		(*(pManager->GetIOSettings())).SetStringProp(IMP_FBX_PASSWORD, lString);
-		(*(pManager->GetIOSettings())).SetBoolProp(IMP_FBX_PASSWORD_ENABLE, true);
-
-		lStatus = lImporter->Import(pScene);
-
-		if (lStatus == false && lImporter->GetStatus() == FbxStatus::ePasswordError)
-		{
-			FBXSDK_printf("\nPassword is wrong, import aborted.\n");
-		}
-	}
-
-	if (!lStatus || (lImporter->GetStatus() != FbxStatus::eSuccess))
-	{
-		FBXSDK_printf("********************************************************************************\n");
-		if (lStatus)
-		{
-			FBXSDK_printf("WARNING:\n");
-			FBXSDK_printf("   The importer was able to read the file but with errors.\n");
-			FBXSDK_printf("   Loaded scene may be incomplete.\n\n");
-		}
-		else
-		{
-			FBXSDK_printf("Importer failed to load the file!\n\n");
-		}
-
-		if (lImporter->GetStatus() != FbxStatus::eSuccess)
-			FBXSDK_printf("   Last error message: %s\n", lImporter->GetStatus().GetErrorString());
-
-		FbxArray<FbxString*> history;
-		lImporter->GetStatus().GetErrorStringHistory(history);
-		if (history.GetCount() > 1)
-		{
-			FBXSDK_printf("   Error history stack:\n");
-			for (int i = 0; i < history.GetCount(); i++)
-			{
-				FBXSDK_printf("      %s\n", history[i]->Buffer());
-			}
-		}
-		FbxArrayDelete<FbxString*>(history);
-		FBXSDK_printf("********************************************************************************\n");
-	}
-
-	// Destroy the importer.
-	lImporter->Destroy();
-
-	return lStatus;
-
-
-}
-
-bool FBXModel::ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene)
-{
-	// Convert Axis System to what is used in this example, if needed
-	FbxAxisSystem SceneAxisSystem = pScene->GetGlobalSettings().GetAxisSystem();
-	FbxAxisSystem OurAxisSystem(FbxAxisSystem::eYAxis, FbxAxisSystem::eParityOdd, FbxAxisSystem::eRightHanded);
-	if (SceneAxisSystem != OurAxisSystem)
-	{
-		OurAxisSystem.ConvertScene(pScene);
-	}
-
-	//FbxAxisSystem OurAxisSystem(FbxAxisSystem::eDirectX);
-	//FbxAxisSystem SceneAxisSystem = pScene->GetGlobalSettings().GetAxisSystem();
-	//if (SceneAxisSystem != OurAxisSystem)
-	//{
-	//	OurAxisSystem.ConvertScene(pScene);
-	//}
-
-	// Convert Unit System to what is used in this example, if needed
-	FbxSystemUnit SceneSystemUnit = pScene->GetGlobalSettings().GetSystemUnit();
-	if (SceneSystemUnit.GetScaleFactor() != 1.0)
-	{
-		//The unit in this example is centimeter.
-		FbxSystemUnit::cm.ConvertScene(pScene);
-	}
-	// Convert mesh, NURBS and patch into triangle mesh
-	FbxGeometryConverter lGeomConverter(pManager);
-	try {
-		lGeomConverter.Triangulate(pScene, /*replace*/true);
-		lGeomConverter.SplitMeshesPerMaterial(pScene, true);
-	}
-	catch (std::runtime_error) {
-		FBXSDK_printf("Scene integrity verification failed.\n");
-		return false;
 	}
 	return true;
 }
@@ -287,90 +55,38 @@ std::map<int, std::string>& TraverseFrameTree(LPFRAME pFrame, std::map<int, std:
 	return boneMap; // 返回映射引用，支持直接接收结果
 }
 
-LPModelData FBXModel::FetchScene(FbxScene* pScene)
+LPModelData FBXModel::FetchScene(const aiScene* pScene)
 {
 	LPModelData modelData = NULL;
-	FbxNode* lNode = pScene->GetRootNode();
-	FbxAnimEvaluator* FbxAnim = pScene->GetAnimationEvaluator();
-	if (lNode)
+	if (pScene->HasMeshes())
 	{
 		modelData = new ModelData();
-		//提取各种属性信息
-		for (int i = 0; i < lNode->GetChildCount(); i++)
+		for (int i = 0; i < pScene->mNumMeshes; i++)
 		{
-			FbxNode* pNode = lNode->GetChild(i);
-			FbxNodeAttribute* pNodeAttribute = pNode->GetNodeAttribute();
-			if (pNodeAttribute != NULL)
-			{
-				FbxNodeAttribute::EType lAttributeType = (pNode->GetNodeAttribute()->GetAttributeType());
-				switch (lAttributeType)
-				{
-				case FbxNodeAttribute::eSkeleton: {
-					LPFRAME frame = FetchSkeleton(pNode, pNodeAttribute, FbxAnim);
-					modelData->Bone = frame;
-					TraverseFrameTree(frame, modelData->BoneNameToIndex);
-				}break;
-				case FbxNodeAttribute::eMesh:
-				{
-					LPMESH mesh = FetchMesh(pNode, pNodeAttribute);
-					modelData->Meshs.push_back(mesh);
-				}
-				break;
-
-				//case FbxNodeAttribute::eMarker:
-				//	DisplayMarker(pNode);
-				//	break;
-
-				//case FbxNodeAttribute::eNurbs:
-				//	DisplayNurb(pNode);
-				//	break;
-
-				//case FbxNodeAttribute::ePatch:
-				//	DisplayPatch(pNode);
-				//	break;
-
-				//case FbxNodeAttribute::eCamera:
-				//	DisplayCamera(pNode);
-				//	break;
-
-				//case FbxNodeAttribute::eLight:
-				//	DisplayLight(pNode);
-				//	break;
-
-				//case FbxNodeAttribute::eLODGroup:
-				//	DisplayLodGroup(pNode);
-				//	break;
-				default:
-					break;
-				}
-			}
+			const aiMesh* paiSubMesh = pScene->mMeshes[i];
+			LPMESH mesh = FetchMesh(paiSubMesh, pScene);
+			modelData->Meshs.push_back(mesh);
 		}
-		//提取动画信息
-		FetchAnimation(pScene, modelData);
 	}
 	return modelData;
 }
 
-MATRIX _fbxToMatrix(const FbxAMatrix& fbxMatrix)
+MATRIX _ToMatrix(const aiMatrix4x4& mxAI)
 {
-	MATRIX matrix = MATRIX();
-	for (unsigned long i = 0; i < 4; ++i)
-	{
-		matrix(i, 0) = (float)fbxMatrix.Get(i, 0);
-		matrix(i, 1) = (float)fbxMatrix.Get(i, 1);
-		matrix(i, 2) = (float)fbxMatrix.Get(i, 2);
-		matrix(i, 3) = (float)fbxMatrix.Get(i, 3);
-	}
-	return matrix;
+	return MATRIX(
+		mxAI.a1, mxAI.a2, mxAI.a3, mxAI.a4,
+		mxAI.b1, mxAI.b2, mxAI.b3, mxAI.b4,
+		mxAI.c1, mxAI.c2, mxAI.c3, mxAI.c4,
+		mxAI.d1, mxAI.d2, mxAI.d3, mxAI.d4);
 }
-MATRIX FbxMatrixToD3DXMatrix(const FbxAMatrix& fbxMat) {
+
+MATRIX MatrixTranspose(const aiMatrix4x4& mxAI)
+{
 	MATRIX d3dMat;
-	for (int row = 0; row < 4; row++) {
-		for (int col = 0; col < 4; col++) {
-			// FBX 列优先 → D3DX 行优先：d3dMat._rc = fbxMat.m[col][row]
-			d3dMat.m[row][col] = (float)fbxMat.Get(col, row);
-		}
-	}
+	d3dMat._11 = mxAI.a1;  d3dMat._12 = mxAI.b1;  d3dMat._13 = mxAI.c1;  d3dMat._14 = mxAI.d1;
+	d3dMat._21 = mxAI.a2;  d3dMat._22 = mxAI.b2;  d3dMat._23 = mxAI.c2;  d3dMat._24 = mxAI.d2;
+	d3dMat._31 = mxAI.a3;  d3dMat._32 = mxAI.b3;  d3dMat._33 = mxAI.c3;  d3dMat._34 = mxAI.d3;
+	d3dMat._41 = mxAI.a4;  d3dMat._42 = mxAI.b4;  d3dMat._43 = mxAI.c4;  d3dMat._44 = mxAI.d4;
 	return d3dMat;
 }
 // 递归打印骨骼树形结构（核心函数）
@@ -483,335 +199,116 @@ LPFRAME FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribut
 	}
 	return pFrame;
 }
-bool CheckExsitNormal(const FbxMesh* pFbxMesh)
-{
-	bool exist = false;
-	if (pFbxMesh->GetElementNormalCount() > 0)
-	{
-		const int nMappingMode = pFbxMesh->GetElementNormal(0)->GetMappingMode();
-		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
-		{
-			exist = true;
-		}
-	}
-	return exist;
-}
-bool CheckExsitTangent(const FbxMesh* pFbxMesh)
-{
-	bool exist = false;
-	if (pFbxMesh->GetElementTangentCount() > 0)
-	{
-		const int nMappingMode = pFbxMesh->GetElementTangent(0)->GetMappingMode();
-		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
-		{
-			exist = true;
-		}
-	}
-	return exist;
-}
-bool CheckExsitColor(const FbxMesh* pFbxMesh)
-{
-	bool exist = false;
-	if (pFbxMesh->GetElementVertexColorCount() > 0)
-	{
-		const int nMappingMode = pFbxMesh->GetElementVertexColor(0)->GetMappingMode();
-		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
-		{
-			exist = true;
-		}
-	}
-	return exist;
-}
-bool CheckExsitUV1(const FbxMesh* pFbxMesh)
-{
-	bool exist = false;
-	if (pFbxMesh->GetElementUVCount() > 0)
-	{
-		const int nMappingMode = pFbxMesh->GetElementUV(0)->GetMappingMode();
-		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
-		{
-			exist = true;
-		}
-	}
-	return exist;
-}
-bool CheckExsitUV2(const FbxMesh* pFbxMesh)
-{
-	bool exist = false;
-	if (pFbxMesh->GetElementUVCount() > 1)
-	{
-		const int nMappingMode = pFbxMesh->GetElementUV(1)->GetMappingMode();
-		if (nMappingMode == FbxGeometryElement::eByPolygonVertex)
-		{
-			exist = true;
-		}
-	}
-	return exist;
-}
-VECTOR3 FetchMesh_Vertex(FbxMesh* pMesh, int ctrlPointIndex)
-{
-	const FbxVector4* controlPoints = pMesh->GetControlPoints();
-	FbxVector4 currentVertex = controlPoints[ctrlPointIndex];
-	VECTOR3 dxVertex = VECTOR3(
-		static_cast<float>(currentVertex[0]),
-		static_cast<float>(currentVertex[1]),
-		static_cast<float>(currentVertex[2])
-	);
-	return dxVertex;
-}
-VECTOR3 FetchMesh_Normal(FbxMesh* pFbxMesh, int nVertexIndex)
-{
-	FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);
-	const int nReferenceMode = lNormalElement->GetReferenceMode();
-	const FbxLayerElementArrayTemplate<FbxVector4>& kNormalArray = lNormalElement->GetDirectArray();
-	//
-	int nIndex = nVertexIndex;
-	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
-	{
-		const FbxLayerElementArrayTemplate<int>& kIndexArray = lNormalElement->GetIndexArray();
-		nIndex = kIndexArray.GetAt(nVertexIndex);
-	}
-	FbxVector4 pNormal = kNormalArray.GetAt(nIndex);
-	return VECTOR3(pNormal[0], pNormal[1], pNormal[2]);
-}
-VECTOR3 FetchMesh_Tangent(FbxMesh* pFbxMesh, int nVertexIndex)
-{
-	FbxGeometryElementTangent* leTangent = pFbxMesh->GetElementTangent(0);
-	const int nReferenceMode = leTangent->GetReferenceMode();
-	const FbxLayerElementArrayTemplate<FbxVector4>& kTangentArray = leTangent->GetDirectArray();
-	//
-	int nIndex = nVertexIndex;
-	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
-	{
-		const FbxLayerElementArrayTemplate<int>& kIndexArray = leTangent->GetIndexArray();
-		nIndex = kIndexArray.GetAt(nVertexIndex);
-	}
-	FbxVector4 pTangent = kTangentArray.GetAt(nIndex);
-	return VECTOR3(pTangent[0], pTangent[1], pTangent[2]);
-}
-COLORVALUE FetchMesh_Color(FbxMesh* pFbxMesh, int nVertexIndex)
-{
-	FbxGeometryElementVertexColor* leVtxc = pFbxMesh->GetElementVertexColor(0);
-	const int nReferenceMode = leVtxc->GetReferenceMode();
-	FbxLayerElementArrayTemplate<FbxColor>& kColorArray = leVtxc->GetDirectArray();
-	//
-	int nIndex = nVertexIndex;
-	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
-	{
-		FbxLayerElementArrayTemplate<int>& kIndexArray = leVtxc->GetIndexArray();
-		nIndex = kIndexArray.GetAt(nVertexIndex);
-	}
-	FbxColor pColor = kColorArray.GetAt(nIndex);
-	return COLORVALUE(
-		static_cast<float>(pColor.mRed),
-		static_cast<float>(pColor.mGreen),
-		static_cast<float>(pColor.mBlue),
-		static_cast<float>(pColor.mAlpha)
-	);
-}
-FbxVector2 FetchMesh_UV(FbxMesh* pFbxMesh, int nVertexIndex, int nUVIndex)
-{
-	const FbxGeometryElementUV* leUV = pFbxMesh->GetElementUV(nUVIndex);
-	const int nReferenceMode = leUV->GetReferenceMode();
-	const FbxLayerElementArrayTemplate<FbxVector2>& kUVArray = leUV->GetDirectArray();
-	//
-	int nIndex = nVertexIndex;
-	if (nReferenceMode == FbxGeometryElement::eIndexToDirect)
-	{
-		const FbxLayerElementArrayTemplate<int>& kIndexArray = leUV->GetIndexArray();
-		nIndex = kIndexArray.GetAt(nVertexIndex);
-	}
-	FbxVector2 pUV = kUVArray.GetAt(nIndex);
-	return pUV;
-}
-LPMESH FBXModel::FetchMesh(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute)
+
+
+LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 {
 	LPMESH pMesh = new MESH();
-	const char* nodeName = pNode->GetName();
-	pMesh->Name = nodeName;
-	FbxMesh* pFbxMesh = pNode->GetMesh();
-	if (!pFbxMesh->IsTriangleMesh()) {
-		FbxGeometryConverter converter(pFbxMesh->GetFbxManager());
-		converter.Triangulate(pFbxMesh, true); // 强制三角化
-	}
+	pMesh->Name = paiSubMesh->mName.C_Str();
 
-	// 获取 FBX Mesh 的基础信息
-	const int ControlPointsCount = pFbxMesh->GetControlPointsCount(); // 控制点数量（不重复顶点的数量，也称为控制点）
-	const int numPolygons = pFbxMesh->GetPolygonCount();       // 三角面数量（每个面默认是三角形，需确保 FBX 已三角化）
-	pMesh->VertexCount = ControlPointsCount;//默认
-	pMesh->FaceCount = numPolygons;
-
-	const FbxVector4* controlPoints = pFbxMesh->GetControlPoints();
-	const FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal(0);
-	const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(0);
 
 	int vertexCounter = 0;
 	std::map<int, Vertex> Vertexs;
-	for (int index = 0; index < numPolygons; index++)
-	{
-		int vertexCountPerFace = pFbxMesh->GetPolygonSize(index);
-		for (int vindex = 0; vindex < vertexCountPerFace; vindex++)
+
+	// 加载顶点常规数据
+	pMesh->VertexCount = paiSubMesh->mNumVertices;
+	for (unsigned int i = 0; i < paiSubMesh->mNumVertices; i++) {
+		Vertex vertex;
+		if (paiSubMesh->HasPositions())
 		{
-			int ctrlPointIndex = pFbxMesh->GetPolygonVertex(index, vindex);
-			pMesh->Indices.push_back(ctrlPointIndex);
-			if (Vertexs.count(ctrlPointIndex)) {
-				vertexCounter++;
-				continue;
-			}
-			Vertex vertex;
-			// 读取顶点位置
-			VECTOR3 dxVertex = FetchMesh_Vertex(pFbxMesh, ctrlPointIndex);
-			vertex.x = dxVertex.x;
-			vertex.y = dxVertex.y;
-			vertex.z = dxVertex.z;
-			// 读取法线
-			if (CheckExsitNormal(pFbxMesh))
-			{
-				VECTOR3	dxNormal = FetchMesh_Normal(pFbxMesh, vertexCounter);
-				vertex.nx = dxNormal.x;
-				vertex.ny = dxNormal.y;
-				vertex.nz = dxNormal.z;
-			}
-			//读取切线
-			if (CheckExsitTangent(pFbxMesh))
-			{
-				FetchMesh_Tangent(pFbxMesh, vertexCounter);
-			}
-			//读取颜色
-			if (CheckExsitColor(pFbxMesh))
-			{
-				FetchMesh_Color(pFbxMesh, vertexCounter);
-			}
-			//读取UV1
-			if (CheckExsitUV1(pFbxMesh))
-			{
-				FbxVector2 uv1 = FetchMesh_UV(pFbxMesh, vertexCounter, 0);
-				vertex.u = uv1[0];
-				vertex.v = 1 - uv1[1];
-			}
-			//读取UV2
-			if (CheckExsitUV2(pFbxMesh))
-			{
-				FbxVector2 uv2 = FetchMesh_UV(pFbxMesh, vertexCounter, 1);
-			}
-			Vertexs[ctrlPointIndex] = vertex;
-			vertexCounter++;
+			vertex.x = paiSubMesh->mVertices[i].x;
+			vertex.y = paiSubMesh->mVertices[i].y;
+			vertex.z = paiSubMesh->mVertices[i].z;
 		}
-	}
-	for (const auto& pair : Vertexs) {
-		int key = pair.first;
-		Vertex value = pair.second;
-		pMesh->Vertices.push_back(value);
-	}
-	FbxAMatrix matGeometryTransform;
-	const FbxVector4 lT = pNode->GetGeometricTranslation(FbxNode::eSourcePivot);
-	const FbxVector4 lR = pNode->GetGeometricRotation(FbxNode::eSourcePivot);
-	const FbxVector4 lS = pNode->GetGeometricScaling(FbxNode::eSourcePivot);
-	matGeometryTransform = FbxAMatrix(lT, lR, lS);
 
-	// 遍历网格的所有蒙皮控制器（FbxSkin）
-	int count = pFbxMesh->GetDeformerCount(FbxDeformer::eSkin);
-	for (int skinIdx = 0; skinIdx < pFbxMesh->GetDeformerCount(FbxDeformer::eSkin); skinIdx++)
-	{
-
-		FbxSkin* pSkin = FbxCast<FbxSkin>(pFbxMesh->GetDeformer(skinIdx, FbxDeformer::eSkin));
-		if (!pSkin) continue;
-
-		std::cout << "找到蒙皮控制器，包含骨骼簇数：" << pSkin->GetClusterCount() << std::endl;
-
-		// 遍历每个骨骼簇（FbxCluster = 一根骨骼 + 受影响顶点 + 权重）
-		for (int clusterIdx = 0; clusterIdx < pSkin->GetClusterCount(); clusterIdx++)
+		if (paiSubMesh->HasNormals())
 		{
-			Influence influence;
-			FbxCluster* pCluster = pSkin->GetCluster(clusterIdx);
-			const char* pBoneName = pCluster->GetLink()->GetName();
-			const int lIndexCount = pCluster->GetControlPointIndicesCount();
-			const int* lIndices = pCluster->GetControlPointIndices();
-			const double* lWeights = pCluster->GetControlPointWeights();
-
-			FbxAMatrix transformMatrix;
-			FbxAMatrix transformLinkMatrix;
-			FbxAMatrix globalBindposeInverseMatrix;
-			// The transformation of the mesh at binding time
-			pCluster->GetTransformMatrix(transformMatrix);
-			// The transformation of the cluster(joint) at binding time from joint space to world space
-			pCluster->GetTransformLinkMatrix(transformLinkMatrix);
-			//transformLinkMatrix = pBoneNode->EvaluateGlobalTransform();
-			globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * matGeometryTransform;
-
-			influence.BoneSpaceToModelSpace = _fbxToMatrix(globalBindposeInverseMatrix);
-			influence.count = lIndexCount;
-
-			for (int i = 0; i < lIndexCount; i++)
-			{
-				int vertexIdx = lIndices[i];
-				float weight = static_cast<float>(lWeights[i]);
-
-				influence.Vertices.push_back(vertexIdx);
-				influence.Weights.push_back(weight);
-				/*		std::cout << "vertex：" << vertexIdx << "weight：" << weight << std::endl;*/
-			}
-			pMesh->Influences[pBoneName] = influence;
+			vertex.nx = paiSubMesh->mNormals[i].x;
+			vertex.ny = paiSubMesh->mNormals[i].y;
+			vertex.nz = paiSubMesh->mNormals[i].z;
 		}
-		break;//默认只获取一个
+
+		// 注意这个地方只考虑一个纹理的情况，其实最多可以有八个，可以再做个循环进行加载
+		if (paiSubMesh->HasTextureCoords(0))
+		{
+			vertex.u = paiSubMesh->mTextureCoords[0][i].x;
+			vertex.v = paiSubMesh->mTextureCoords[0][i].y;
+		}
 	}
-	//获取材质和贴图信息
-	FbxNode* node = pFbxMesh->GetNode();
-	int materialCount = node->GetMaterialCount();
+	// 加载索引数据
+	pMesh->FaceCount = paiSubMesh->mNumFaces;
+	for (unsigned int i = 0; i < paiSubMesh->mNumFaces; i++)
+	{
+		const aiFace& Face = paiSubMesh->mFaces[i];
 
-	for (int m = 0; m < materialCount; ++m) {
-		Material mat;
-		FbxSurfaceMaterial* material = node->GetMaterial(m);
-
-		// 常见的标准材质类型
-		if (material->GetClassId().Is(FbxSurfacePhong::ClassId)) {
-			FbxSurfacePhong* phong = (FbxSurfacePhong*)material;
-			// 可访问 Diffuse、Specular 等属性
-			// 漫反射颜色 Diffuse
-			FbxDouble3 diffuseColor = phong->Diffuse.Get();
-			// 环境色 Ambient
-			FbxDouble3 ambientColor = phong->Ambient.Get();
-			// 高光颜色 Specular
-			FbxDouble3 specularColor = phong->Specular.Get();
-			// 发光色 Emissive
-			FbxDouble3 emissiveColor = phong->Emissive.Get();
-			// 高光指数 Shininess
-			double shininess = phong->Shininess.Get();
-			// 透明度获取
-			float opacity = 1.0f - phong->TransparencyFactor.Get(); // 透明度是反向的
-
-
-			mat.MatD3D.Diffuse = COLORVALUE(diffuseColor[0], diffuseColor[1], diffuseColor[2]);
-			mat.MatD3D.Ambient = COLORVALUE(ambientColor[0], ambientColor[1], ambientColor[2]);
-			mat.MatD3D.Specular = COLORVALUE(specularColor[0], specularColor[1], specularColor[2]);
-			mat.MatD3D.Emissive = COLORVALUE(emissiveColor[0], emissiveColor[1], emissiveColor[2]);
-			mat.MatD3D.Power = (float)shininess;
-			mat.MatD3D.Opacity = opacity;
-
-			printf("Diffuse: %.2f %.2f %.2f\n", diffuseColor[0], diffuseColor[1], diffuseColor[2]);
-			printf("Specular: %.2f %.2f %.2f\n", specularColor[0], specularColor[1], specularColor[2]);
-			printf("Shininess: %.2f\n", shininess);
+		for (unsigned int k = 0; k < Face.mNumIndices; k++)
+		{
+			pMesh->Indices.push_back(Face.mIndices[k]);
 		}
-
-		FbxProperty prop = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-		int textureCount = prop.GetSrcObjectCount<FbxTexture>();
-		for (int t = 0; t < textureCount; ++t) {
-			FbxTexture* texture = prop.GetSrcObject<FbxTexture>(t);
-			if (texture && texture->GetClassId().Is(FbxFileTexture::ClassId)) {
-				FbxFileTexture* fileTex = (FbxFileTexture*)texture;
-				// 5. 解析贴图的混合模式（渲染方式）
-				FbxTexture::EBlendMode fbxBlendMode = fileTex->GetBlendMode();
-				// 获取贴图文件路径
-				const char* texPath = fileTex->GetFileName();
-				printf("Diffuse Texture: %s\n", texPath);
-				mat.pTexture = texPath;
-				break;//默认只取第一张贴图
-			}
-		}
-
-		pMesh->MatD3Ds.push_back(mat);
 	}
+	// 加载骨骼数据
+	for (unsigned int i = 0; i < paiSubMesh->mNumBones; i++)
+	{
+		aiBone* pBone = paiSubMesh->mBones[i];
+		std::string pBoneName = pBone->mName.C_Str();
+		Influence influence;
+		influence.BoneSpaceToModelSpace_BoneOffset = MatrixTranspose(pBone->mOffsetMatrix);
+		influence.count = pBone->mNumWeights;
+		for (unsigned int k = 0; k < pBone->mNumWeights; k++)
+		{
+			unsigned int VertexID = pBone->mWeights[k].mVertexId;
+			float Weight = pBone->mWeights[k].mWeight;
 
+			influence.Vertices.push_back(VertexID);
+			influence.Weights.push_back(Weight);
+
+			pMesh->VerticeInfluences[VertexID].push_back(Weight);
+		}
+		pMesh->Influences[pBoneName] = influence;
+	}
+	// 获取材质
+	const aiMaterial* pMaterial = pScene->mMaterials[paiSubMesh->mMaterialIndex];
+	aiColor3D outColor;
+	if (pMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, outColor) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Diffuse = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+	}
+	if (pMaterial->Get(AI_MATKEY_COLOR_AMBIENT, outColor) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Ambient = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+	}
+	if (pMaterial->Get(AI_MATKEY_COLOR_SPECULAR, outColor) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Specular = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+	}
+	if (pMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, outColor) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Emissive = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+	}
+	float outOpacity;
+	if (pMaterial->Get(AI_MATKEY_OPACITY, outOpacity) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Opacity = outOpacity * 255;
+	}
+	float outOpacity;
+	if (pMaterial->Get(AI_MATKEY_SHININESS, outOpacity) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Opacity = outOpacity * 255;
+	}
+	float outShininess;
+	if (pMaterial->Get(AI_MATKEY_SHININESS, outShininess) == aiReturn_SUCCESS)
+	{
+		pMesh->Material.MatD3D.Power = outShininess;
+	}
+	if (pMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+	{
+		aiString aistrPath;
+		if (pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &aistrPath, nullptr, nullptr, nullptr, nullptr, nullptr) == AI_SUCCESS)
+		{
+			std::string TextureFileName = aistrPath.C_Str();
+			pMesh->Material.pTexture = TextureFileName;
+		}
+	}
 	return pMesh;
 }
 
