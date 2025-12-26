@@ -23,10 +23,10 @@ private:
 	//bool ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene);
 private:
 	LPModelData FetchScene(const aiScene* pScene);
-	LPFRAME FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim);
-	LPFRAME FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex,int& boneIndex);
+	LPFRAME FetchSkeleton(const aiScene* pScene, LPModelData modelData);
+	LPFRAME FetchSkeletons(const aiNode* pNode, int parentIndex, int& boneIndex);
 	LPMESH FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene);
-	LPModelData FetchAnimation(FbxScene* pScene, LPModelData modelData);
+	std::vector<LPAnimationClip> FetchAnimations(const aiScene* pScene, LPModelData modelData);
 };
 
 #endif //_FBXModel_h_

@@ -50,18 +50,11 @@ struct MATRIX {
 	// 核心：重载 operator()，支持 matrix(row, col) 读写访问
    // 参数：row = 行索引（0-3），col = 列索引（0-3）
 	float& operator()(int row, int col) {
-		// 边界检查（可选，避免越界访问）
-		if (row < 0 || row >= 4 || col < 0 || col >= 4) {
-			throw std::out_of_range("MATRIX 索引越界！row 和 col 必须在 0-3 之间");
-		}
 		return m[row][col]; // 行优先：m[行][列] 对应 _(row+1)(col+1)
 	}
 
 	// 重载 const 版本（用于 const MATRIX 对象的只读访问）
 	const float& operator()(int row, int col) const {
-		if (row < 0 || row >= 4 || col < 0 || col >= 4) {
-			throw std::out_of_range("MATRIX 索引越界！row 和 col 必须在 0-3 之间");
-		}
 		return m[row][col];
 	}
 };
@@ -127,7 +120,7 @@ typedef struct _Material
 {
 	MATERIALInfo  MatD3D;
 	std::string pTexture;
-}Material;
+}Material, * LPMaterial;
 
 typedef struct _MESH
 {
@@ -138,7 +131,7 @@ typedef struct _MESH
 	std::vector<Vertex> Vertices;
 	std::vector<WORD>  Indices;//默认dx支持16位索引
 	//std::vector<DWORD>  Attributes;
-	Material   Material;
+	LPMaterial   Material;
 	std::map<std::string, Influence> Influences;
 	std::map<unsigned int, std::vector<float>> VerticeInfluences;
 }MESH, * LPMESH;
@@ -154,8 +147,8 @@ typedef struct _FRAME
 	std::string Name;
 	MATRIX		      TransformationMatrix;
 	LPMESHCONTAINER	  pMeshContainer;
-	struct _FRAME*    pFrameSibling;   //兄弟节点指向下一个
-	struct _FRAME*    pFrameFirstChild;//指向第一个子节点
+	struct _FRAME* pFrameSibling;   //兄弟节点指向下一个
+	struct _FRAME* pFrameFirstChild;//指向第一个子节点
 	MATRIX	          ParentTM;
 	MATRIX	          NodeTMInverse;
 	int               BoneIndex;
@@ -192,7 +185,7 @@ typedef struct _KEY_QUATERNION
 typedef struct _AnimationKeyFrame
 {
 	FLOAT Time;
-	int keyframe;   //第几帧
+	//Position 对应的这个
 	VECTOR3      Translation;
 	QUATERNION   Rotation;
 	//VECTOR3      Scale; //默认不用这个
@@ -228,7 +221,7 @@ typedef struct _ModelData
 {
 	LPFRAME                       Bone;             // 骨骼列表 默认一个骨骼对象
 	std::map<int, std::string>    BoneNameToIndex;  // 骨骼名称到索引的映射
-	LPAnimationClip               Animation;        // 动画列表 默认一个动画对象
+	std::vector<LPAnimationClip>  Animations;       // 动画列表 默认一个动画对象
 	std::vector<LPMESH>           Meshs;            // 网格（带蒙皮信息） 默认至少一个网格对象
 }ModelData, * LPModelData;
 

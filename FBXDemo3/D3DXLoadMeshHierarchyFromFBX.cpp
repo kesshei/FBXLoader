@@ -404,7 +404,7 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 	pMeshContainer->pOrigMesh->UnlockAttributeBuffer();
 
 
-	if (!mesh->MatD3Ds.empty())
+	if (mesh->Material)
 	{
 		// Materials
 		pMeshContainer->NumMaterials = 10;
@@ -414,9 +414,9 @@ HRESULT getD3DXMeshContainer(D3DXMESHCONTAINER_DERIVED* pMeshContainer, LPDIRECT
 		memset(&pMeshContainer->pMaterials[0].MatD3D, 0, sizeof(D3DMATERIAL9));
 		//memset(pMeshContainer->ppTextures, 0, sizeof(LPDIRECT3DTEXTURE9) * pMeshContainer->NumMaterials);
 
-		Material material = mesh->MatD3Ds[0];
-		MATERIALInfo matInfo = material.MatD3D;
-		std::string pTexture = material.pTexture;
+		LPMaterial material = mesh->Material;
+		MATERIALInfo matInfo = material->MatD3D;
+		std::string pTexture = material->pTexture;
 		if (matInfo.Ambient.r == 0 && matInfo.Ambient.g == 0 && matInfo.Ambient.b == 0 &&
 			matInfo.Diffuse.r == 0 && matInfo.Diffuse.g == 0 && matInfo.Diffuse.b == 0)
 		{
@@ -481,7 +481,7 @@ LPD3DXANIMATIONCONTROLLER getAnimation(FBXModel model)
 	int MAX_ANIMATIONSETS = 320;
 	int nTrackNum = 1;
 
-	LPAnimationClip  Animation = model.m_modelData->Animation;
+	LPAnimationClip  Animation = model.m_modelData->Animations[0];
 	int wNodeNum = Animation->boneKeyFrames.size();
 
 

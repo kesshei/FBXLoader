@@ -67,6 +67,15 @@ LPModelData FBXModel::FetchScene(const aiScene* pScene)
 			LPMESH mesh = FetchMesh(paiSubMesh, pScene);
 			modelData->Meshs.push_back(mesh);
 		}
+		if (pScene->HasSkeletons())
+		{
+			LPFRAME f = FetchSkeleton(pScene, modelData);
+			modelData->Bone = f;
+		}
+		if (pScene->HasAnimations())
+		{
+			modelData->Animations = FetchAnimations(pScene, modelData);
+		}
 	}
 	return modelData;
 }
@@ -147,43 +156,59 @@ void PrintBoneTreeRoot(FRAME* pRootFrame) {
 }
 
 
-
-LPFRAME FBXModel::FetchSkeleton(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim)
+aiNode* GetSkeletonNode(aiNode* pNode, std::map<std::string, Influence> Influences)
 {
-	int number = -1;
-	LPFRAME frame = FetchSkeletons(pNode, pNodeAttribute, FbxAnim, -1, number);
-	PrintBoneTreeRoot(frame);
-	return frame;
+	if (Influences.count(pNode->mName.C_Str()))
+	{
+		return pNode;
+	}
+	for (unsigned int i = 0; i < pNode->mNumChildren; i++)
+	{
+		aiNode* pFoundNode = GetSkeletonNode(pNode->mChildren[i], Influences);
+		if (pFoundNode != NULL)
+		{
+			return pFoundNode;
+		}
+	}
+	return NULL;
 }
 
-LPFRAME FBXModel::FetchSkeletons(FbxNode* pNode, FbxNodeAttribute* pNodeAttribute, FbxAnimEvaluator* FbxAnim, int parentIndex, int& boneIndex)
+LPFRAME FBXModel::FetchSkeleton(const aiScene* pScene, LPModelData modelData)
+{
+	int number = -1;
+	if (modelData->Meshs.size() > 0)
+	{
+		const aiNode* ainode = GetSkeletonNode(pScene->mRootNode, modelData->Meshs[0]->Influences);
+		if (ainode)
+		{
+			LPFRAME frame = FetchSkeletons(ainode, -1, number);
+			PrintBoneTreeRoot(frame);
+			return frame;
+		}
+	}
+	return NULL;
+}
+
+
+LPFRAME FBXModel::FetchSkeletons(const aiNode* pNode, int parentIndex, int& boneIndex)
 {
 	LPFRAME pFrame = NULL, pParentFrame = NULL, pTempFrame = NULL, FrameRoot = NULL;
-	FbxSkeleton* lSkeleton = (FbxSkeleton*)pNode->GetNodeAttribute();
-	const char* lName = pNode->GetName();
-
-	FbxAMatrix lGlobal, lLocal;
-	FbxAMatrix fbxMatrix = FbxAnim->GetNodeLocalTransform(pNode);
-	lGlobal = pNode->EvaluateGlobalTransform();
-	lLocal = pNode->EvaluateLocalTransform();
-	FbxDouble3 translation = pNode->LclTranslation.Get();
-	FbxDouble3 rotation = pNode->LclRotation.Get();
-	FbxDouble3 scaling = pNode->LclScaling.Get();
+	const char* lName = pNode->mName.C_Str();
 
 	boneIndex += 1;
 	pFrame = new FRAME;
 	pFrame->Name = lName;
-	pFrame->TransformationMatrix = _fbxToMatrix(lGlobal);
+	pFrame->TransformationMatrix = MatrixTranspose(pNode->mTransformation);
 	pFrame->ParentBoneIndex = parentIndex;
 	pFrame->BoneIndex = boneIndex;
 
-	if (pNode->GetChildCount() > 0)
+	if (pNode->mNumChildren > 0)
 	{
 		parentIndex += 1;
-		for (int i = 0; i < pNode->GetChildCount(); i++)
+		for (int i = 0; i < pNode->mNumChildren; i++)
 		{
-			FbxNode* pChildNode = pNode->GetChild(i);
-			LPFRAME frameChild = FetchSkeletons(pChildNode, pChildNode->GetNodeAttribute(), FbxAnim, parentIndex, boneIndex);
+			const aiNode* pChildNode = pNode->mChildren[i];
+			LPFRAME frameChild = FetchSkeletons(pChildNode, parentIndex, boneIndex);
 			if (pFrame->pFrameFirstChild == NULL)
 			{
 				pFrame->pFrameFirstChild = frameChild;
@@ -271,34 +296,33 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 	aiColor3D outColor;
 	if (pMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Diffuse = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		pMesh->Material->MatD3D.Diffuse = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	if (pMaterial->Get(AI_MATKEY_COLOR_AMBIENT, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Ambient = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		pMesh->Material->MatD3D.Ambient = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	if (pMaterial->Get(AI_MATKEY_COLOR_SPECULAR, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Specular = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		pMesh->Material->MatD3D.Specular = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	if (pMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Emissive = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		pMesh->Material->MatD3D.Emissive = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
-	float outOpacity;
-	if (pMaterial->Get(AI_MATKEY_OPACITY, outOpacity) == aiReturn_SUCCESS)
+	float out;
+	if (pMaterial->Get(AI_MATKEY_OPACITY, out) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Opacity = outOpacity * 255;
+		pMesh->Material->MatD3D.Opacity = out * 255;
 	}
-	float outOpacity;
-	if (pMaterial->Get(AI_MATKEY_SHININESS, outOpacity) == aiReturn_SUCCESS)
+	if (pMaterial->Get(AI_MATKEY_SHININESS, out) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Opacity = outOpacity * 255;
+		pMesh->Material->MatD3D.Opacity = out * 255;
 	}
 	float outShininess;
 	if (pMaterial->Get(AI_MATKEY_SHININESS, outShininess) == aiReturn_SUCCESS)
 	{
-		pMesh->Material.MatD3D.Power = outShininess;
+		pMesh->Material->MatD3D.Power = outShininess;
 	}
 	if (pMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0)
 	{
@@ -306,121 +330,83 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 		if (pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &aistrPath, nullptr, nullptr, nullptr, nullptr, nullptr) == AI_SUCCESS)
 		{
 			std::string TextureFileName = aistrPath.C_Str();
-			pMesh->Material.pTexture = TextureFileName;
+			pMesh->Material->pTexture = TextureFileName;
 		}
 	}
 	return pMesh;
 }
 
-LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
+std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LPModelData modelData)
 {
-	//正常3dMax的fbx里，只会有一个动画，所以，我们默认只取第一个动画（各个动画如何分割呢，目前只能通过配置的方式了）
-	FbxAnimStack* pAnimStack = pScene->GetSrcObject<FbxAnimStack>(0);
-	if (pAnimStack == NULL)
+	std::vector<LPAnimationClip> animations;
+	for (int i = 0; i < pScene->mNumAnimations; i++)
 	{
-		return NULL;
-	}
-	pScene->SetCurrentAnimationStack(pAnimStack);
-	LPAnimationClip pAnimClip = new AnimationClip();
-	const char* name = pAnimStack->GetName();
-	pAnimClip->Name = name;
-
-	FbxTimeSpan kTimeSpan = pAnimStack->GetLocalTimeSpan();
-	FbxTime kAnimDuration = kTimeSpan.GetDuration();
-	const float fAnimLength = (float)kAnimDuration.GetSecondDouble();
-	const int nFrameCount = (int)kAnimDuration.GetFrameCount(FbxTime::eFrames30);
-	const int nFrameCount2 = (int)kAnimDuration.GetFrameCount();
-	pAnimClip->duration = fAnimLength;
-	pAnimClip->keyframes = nFrameCount;
+		aiAnimation* animation = pScene->mAnimations[i];
+		double duration = animation->mDuration;
+		double tps = animation->mTicksPerSecond;
+		LPAnimationClip pAnimClip = new AnimationClip();
+		pAnimClip->Name = animation->mName.C_Str();
+		pAnimClip->duration = (float)duration;
+		pAnimClip->keyframes = (int)tps;
 
 
-	FbxAnimLayer* animLayer = pAnimStack->GetSrcObject<FbxAnimLayer>(0);
-	// 遍历每个骨骼节点，提取平移/旋转/缩放的关键帧
-	for (int boneIdx = 0; boneIdx < modelData->BoneNameToIndex.size(); boneIdx++) {
-		const char* boneName = modelData->BoneNameToIndex[boneIdx].c_str();
-		FbxNode* boneNode = pScene->FindNodeByName(boneName);
-		if (!boneNode) continue;
+		for (int i = 0; i < animation->mNumChannels; i++)
+		{
+			aiNodeAnim* pChannle = animation->mChannels[i];
+			std::string boneName = pChannle->mNodeName.C_Str();
+			std::map<double, LPAnimationKeyFrame> keyFramesMap;
 
-		std::vector<AnimationKeyFrame> keyFrames;
-		// 提取平移关键帧
-		FbxAnimCurve* txCurve = boneNode->LclTranslation.GetCurve(animLayer, "X");
-		FbxAnimCurve* tyCurve = boneNode->LclTranslation.GetCurve(animLayer, "Y");
-		FbxAnimCurve* tzCurve = boneNode->LclTranslation.GetCurve(animLayer, "Z");
+			for (i = 0; i < pChannle->mNumRotationKeys; i++)
+			{
+				double keyTime = pChannle->mRotationKeys[i].mTime;
 
-		// 提取旋转关键帧（FBX默认是Euler角，转换为四元数）
-		FbxAnimCurve* rxCurve = boneNode->LclRotation.GetCurve(animLayer, "X");
-		FbxAnimCurve* ryCurve = boneNode->LclRotation.GetCurve(animLayer, "Y");
-		FbxAnimCurve* rzCurve = boneNode->LclRotation.GetCurve(animLayer, "Z");
+				if (keyFramesMap.count(keyTime))
+				{
+					keyFramesMap[keyTime]->Rotation.x = pChannle->mRotationKeys[i].mValue.x;
+					keyFramesMap[keyTime]->Rotation.y = pChannle->mRotationKeys[i].mValue.y;
+					keyFramesMap[keyTime]->Rotation.z = pChannle->mRotationKeys[i].mValue.z;
+				}
+				else
+				{
+					LPAnimationKeyFrame keyFrame = new AnimationKeyFrame();
+					keyFrame->Time = (float)keyTime;
+					keyFrame->Rotation.x = pChannle->mRotationKeys[i].mValue.x;
+					keyFrame->Rotation.y = pChannle->mRotationKeys[i].mValue.y;
+					keyFrame->Rotation.z = pChannle->mRotationKeys[i].mValue.z;
+					keyFramesMap[keyTime] = keyFrame;
+				}
+			}
 
-		// 提取缩放关键帧
-		FbxAnimCurve* sxCurve = boneNode->LclScaling.GetCurve(animLayer, "X");
-		FbxAnimCurve* syCurve = boneNode->LclScaling.GetCurve(animLayer, "Y");
-		FbxAnimCurve* szCurve = boneNode->LclScaling.GetCurve(animLayer, "Z");
+			for (i = 0; i < pChannle->mNumPositionKeys; i++)
+			{
+				double keyTime = pChannle->mPositionKeys[i].mTime;
 
-		int a = txCurve ? txCurve->KeyGetCount() : -1;
-		int b = rxCurve ? rxCurve->KeyGetCount() : -1;
-		int c = sxCurve ? sxCurve->KeyGetCount() : -1;
-		// 假设所有通道关键帧数量相同，取最大关键帧数量
-		int keyCount = std::max({
-			txCurve ? txCurve->KeyGetCount() : 0,
-			rxCurve ? rxCurve->KeyGetCount() : 0,
-			sxCurve ? sxCurve->KeyGetCount() : 0
-			});
-
-
-		//遍历关键帧，插值计算每个时间点的变换
-		for (int k = 0; k < keyCount; k++) {
-			AnimationKeyFrame keyFrame;
-			FbxTime time;
-
-			// 提取时间（FBX时间单位转换为秒）
-			if (txCurve) time = txCurve->KeyGetTime(k);
-			else if (rxCurve) time = rxCurve->KeyGetTime(k);
-			else if (sxCurve) time = sxCurve->KeyGetTime(k);
-			keyFrame.Time = (float)time.GetSecondDouble();
-			keyFrame.keyframe = k;
-
-			// 平移插值
-			keyFrame.Translation.x = txCurve ? txCurve->Evaluate(time) : 0.0f;
-			keyFrame.Translation.y = tyCurve ? tyCurve->Evaluate(time) : 0.0f;
-			keyFrame.Translation.z = tzCurve ? tzCurve->Evaluate(time) : 0.0f;
-
-			// 旋转插值（Euler角→四元数）
-			float rx = rxCurve ? rxCurve->Evaluate(time) * PI / 180.0f : 0.0f;
-			float ry = ryCurve ? ryCurve->Evaluate(time) * PI / 180.0f : 0.0f;
-			float rz = rzCurve ? rzCurve->Evaluate(time) * PI / 180.0f : 0.0f;
-			//FbxQuaternion fbxQuat;
-			//fbxQuat.eul(yaw, pitch, roll);
-			//D3DXQuaternionRotationYawPitchRoll(&frame.rotate, ry, rx, rz);
-			//keyFrame.Rotation.x = rxCurve ? rxCurve->Evaluate(time) : 0.0f;
-			//keyFrame.Rotation.y = rxCurve ? rxCurve->Evaluate(time) : 0.0f;
-			//keyFrame.Rotation.z = rxCurve ? rxCurve->Evaluate(time) : 0.0f;
-			//keyFrame.Rotation.w = 1;
-			keyFrame.Rotation.x = rx;
-			keyFrame.Rotation.y = ry;
-			keyFrame.Rotation.z = rz;
-			keyFrame.Rotation.w = 1;
-
-			//// 缩放置信
-			//keyFrame.Scale.x = sxCurve ? sxCurve->Evaluate(time) : 1.0f;
-			//keyFrame.Scale.y = syCurve ? syCurve->Evaluate(time) : 1.0f;
-			//keyFrame.Scale.z = szCurve ? szCurve->Evaluate(time) : 1.0f;
-			const FbxAMatrix& kGlobalTran = boneNode->EvaluateLocalTransform(time);
-			const FbxVector4 T = kGlobalTran.GetT();
-			const FbxVector4 R = kGlobalTran.GetR();
-			keyFrame.Translation.x = (float)T[0];
-			keyFrame.Translation.x = (float)T[1];
-			keyFrame.Translation.x = (float)T[2];
-
-			keyFrame.Rotation.x = (float)R[0];
-			keyFrame.Rotation.y = (float)R[1];
-			keyFrame.Rotation.z = (float)R[2];
-			keyFrame.Rotation.w = (float)R[3];
-
-			keyFrames.push_back(keyFrame);
+				if (keyFramesMap.count(keyTime))
+				{
+					keyFramesMap[keyTime]->Translation.x = pChannle->mPositionKeys[i].mValue.x;
+					keyFramesMap[keyTime]->Translation.y = pChannle->mPositionKeys[i].mValue.y;
+					keyFramesMap[keyTime]->Translation.z = pChannle->mPositionKeys[i].mValue.z;
+				}
+				else
+				{
+					LPAnimationKeyFrame keyFrame = new AnimationKeyFrame();
+					keyFrame->Time = (float)keyTime;
+					keyFrame->Translation.x = pChannle->mPositionKeys[i].mValue.x;
+					keyFrame->Translation.y = pChannle->mPositionKeys[i].mValue.y;
+					keyFrame->Translation.z = pChannle->mPositionKeys[i].mValue.z;
+					keyFramesMap[keyTime] = keyFrame;
+				}
+			}
+			std::vector<AnimationKeyFrame> keyFrames;
+			for (const auto& pair : keyFramesMap) {
+				AnimationKeyFrame keyFrame;
+				keyFrame = *(pair.second);
+				keyFrames.push_back(keyFrame);
+			}
+			pAnimClip->boneKeyFrames[boneName] = keyFrames;
+			animations.push_back(pAnimClip);
 		}
-		pAnimClip->boneKeyFrames[boneName] = keyFrames;
 	}
-	modelData->Animation = pAnimClip;
-	return modelData;
+
+	return animations;
 }
