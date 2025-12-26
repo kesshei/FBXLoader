@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FBXDemo", "..\FBXDemo\FBXDe
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FBXDemo2", "..\FBXDemo2\FBXDemo2.vcxproj", "{E294B7BA-42D4-4C6B-ADD7-BC83A5E7705B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FBXDemo3", "..\FBXDemo3\FBXDemo3.vcxproj", "{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{E294B7BA-42D4-4C6B-ADD7-BC83A5E7705B}.Release|x64.Build.0 = Release|x64
 		{E294B7BA-42D4-4C6B-ADD7-BC83A5E7705B}.Release|x86.ActiveCfg = Release|Win32
 		{E294B7BA-42D4-4C6B-ADD7-BC83A5E7705B}.Release|x86.Build.0 = Release|Win32
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Debug|x64.ActiveCfg = Debug|x64
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Debug|x64.Build.0 = Debug|x64
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Debug|x86.ActiveCfg = Debug|Win32
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Debug|x86.Build.0 = Debug|Win32
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Release|x64.ActiveCfg = Release|x64
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Release|x64.Build.0 = Release|x64
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Release|x86.ActiveCfg = Release|Win32
+		{FABD89D3-9A7E-4A3D-B0D1-FF88420E6182}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
