@@ -823,6 +823,7 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 	{
 		return NULL;
 	}
+	pScene->SetCurrentAnimationStack(pAnimStack);
 	LPAnimationClip pAnimClip = new AnimationClip();
 	const char* name = pAnimStack->GetName();
 	pAnimClip->Name = name;
@@ -844,7 +845,6 @@ LPModelData FBXModel::FetchAnimation(FbxScene* pScene, LPModelData modelData)
 		if (!boneNode) continue;
 
 		std::vector<AnimationKeyFrame> keyFrames;
-
 		// 提取平移关键帧
 		FbxAnimCurve* txCurve = boneNode->LclTranslation.GetCurve(animLayer, "X");
 		FbxAnimCurve* tyCurve = boneNode->LclTranslation.GetCurve(animLayer, "Y");

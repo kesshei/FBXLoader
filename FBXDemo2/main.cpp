@@ -298,7 +298,7 @@ HRESULT Objects_Init()
 	D3DXLoadMeshFromX(L"WYJ.X", D3DXMESH_MANAGED, g_pd3dDevice, &pAdjBuffer, &pMtrlBuffer, NULL, &g_dwNumMtrls, &g_pMesh);
 
 	// ´´½¨¹Ç÷À¶¯»­
-	D3DXLoadMeshHierarchyFromFBX("models/pet_test.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
+	D3DXLoadMeshHierarchyFromFBX("models/pet.fbx", g_pd3dDevice, &g_pFrameRoot, &g_pMeshContainer, &g_pAnimController);
 	LPD3DXANIMATIONSET pAnimationSet = NULL;
 	int dwNewTrack = 0;
 	g_pAnimController->GetAnimationSetByName("Take 001", &pAnimationSet);
