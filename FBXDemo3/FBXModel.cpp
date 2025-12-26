@@ -9,11 +9,40 @@ FBXModel::~FBXModel()
 {
 	m_modelData = NULL;
 }
+// 导入模型使用的标志
+// aiProcess_ConvertToLeftHanded: Assimp 导入的模型是以 OpenGL 的右手坐标系为基础的，将模型转换成 DirectX 的左手坐标系
+// aiProcess_Triangulate：模型设计师可能使用多边形对模型进行建模的，对于用多边形建模的模型，将它们都转换成基于三角形建模
+// aiProcess_FixInfacingNormals：建模软件都是双面显示的，所以设计师不会在意顶点绕序方向，部分面会被剔除无法正常显示，需要翻转过来
+// aiProcess_LimitBoneWeights: 限制顶点的骨骼权重最多为 4 个，其余权重无需处理
+// aiProcess_GenBoundBoxes: 对每个网格，都生成一个 AABB 体积盒
+// aiProcess_JoinIdenticalVertices: 将位置相同的顶点合并为一个顶点，从而减少模型的顶点数量，优化内存使用和提升渲染效率。
+//aiProcess_PopulateArmatureData | // 强制填充骨骼/蒙皮数据（关键！）
+//aiProcess_ValidateDataStructure | // 验证骨骼层级结构
+//aiProcess_Triangulate | aiProcess_LimitBoneWeights | aiProcess_JoinIdenticalVertices| aiProcess_PopulateArmatureData| aiProcess_ValidateDataStructure
+
+// 导入文件时预处理的标志 define in "postprocess.h"
+// 注意这里的Post Porcess的意思是相对于Assimp来说，导入文件中数据以后的后处理，跟渲染的后处理没有半毛钱关系
+// aiProcess_LimitBoneWeights
+// aiProcess_OptimizeMeshes
+// aiProcess_MakeLeftHanded
+// aiProcess_ConvertToLeftHanded
+// aiProcess_MakeLeftHanded
+#define ASSIMP_LOAD_FLAGS aiProcess_Triangulate\
+ | aiProcess_GenSmoothNormals\
+ | aiProcess_JoinIdenticalVertices\
+ | aiProcess_ConvertToLeftHanded\
+ | aiProcess_GenBoundingBoxes\
+ | aiProcess_LimitBoneWeights \
+ |aiProcess_EmbedTextures
+
+//#define ASSIMP_LOAD_FLAGS 0
 
 bool FBXModel::Load(std::string modelFile)
 {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(modelFile, 0);
+	importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
+
+	const aiScene* scene = importer.ReadFile(modelFile, ASSIMP_LOAD_FLAGS);
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
 		std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
@@ -231,7 +260,6 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 	LPMESH pMesh = new MESH();
 	pMesh->Name = paiSubMesh->mName.C_Str();
 
-
 	int vertexCounter = 0;
 	std::map<int, Vertex> Vertexs;
 
@@ -259,6 +287,7 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 			vertex.u = paiSubMesh->mTextureCoords[0][i].x;
 			vertex.v = paiSubMesh->mTextureCoords[0][i].y;
 		}
+		pMesh->Vertices.push_back(vertex);
 	}
 	// 加载索引数据
 	pMesh->FaceCount = paiSubMesh->mNumFaces;

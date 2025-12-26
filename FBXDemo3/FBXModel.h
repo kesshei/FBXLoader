@@ -2,6 +2,7 @@
 #define _FBXModel_h_
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
+#include <assimp/postprocess.h>
 #include "ModelData.h"
 #include <iostream>
 #include <string>
