@@ -32,8 +32,7 @@ FBXModel::~FBXModel()
  | aiProcess_JoinIdenticalVertices\
  | aiProcess_ConvertToLeftHanded\
  | aiProcess_GenBoundingBoxes\
- | aiProcess_LimitBoneWeights \
- |aiProcess_EmbedTextures
+ | aiProcess_LimitBoneWeights 
 
 //#define ASSIMP_LOAD_FLAGS 0
 
@@ -90,16 +89,22 @@ LPModelData FBXModel::FetchScene(const aiScene* pScene)
 	if (pScene->HasMeshes())
 	{
 		modelData = new ModelData();
+		bool hasSkeletons = false;
 		for (int i = 0; i < pScene->mNumMeshes; i++)
 		{
 			const aiMesh* paiSubMesh = pScene->mMeshes[i];
 			LPMESH mesh = FetchMesh(paiSubMesh, pScene);
+			if (mesh->Indices.size() > 0)
+			{
+				hasSkeletons = true;
+			}
 			modelData->Meshs.push_back(mesh);
 		}
-		if (pScene->HasSkeletons())
+		if (hasSkeletons)
 		{
-			LPFRAME f = FetchSkeleton(pScene, modelData);
-			modelData->Bone = f;
+			LPFRAME frame = FetchSkeleton(pScene, modelData);
+			modelData->Bone = frame;
+			TraverseFrameTree(frame, modelData->BoneNameToIndex);
 		}
 		if (pScene->HasAnimations())
 		{
@@ -207,7 +212,16 @@ LPFRAME FBXModel::FetchSkeleton(const aiScene* pScene, LPModelData modelData)
 	int number = -1;
 	if (modelData->Meshs.size() > 0)
 	{
-		const aiNode* ainode = GetSkeletonNode(pScene->mRootNode, modelData->Meshs[0]->Influences);
+		const aiNode* ainode = NULL;
+		for (int i = 0; i < pScene->mRootNode->mNumChildren; i++)
+		{
+			const aiNode* temp = GetSkeletonNode(pScene->mRootNode->mChildren[i], modelData->Meshs[0]->Influences);
+			if (temp != NULL)
+			{
+				ainode = pScene->mRootNode->mChildren[i];
+				break;
+			}
+		}
 		if (ainode)
 		{
 			LPFRAME frame = FetchSkeletons(ainode, -1, number);
@@ -322,36 +336,37 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 	}
 	// »ñÈ¡²ÄÖÊ
 	const aiMaterial* pMaterial = pScene->mMaterials[paiSubMesh->mMaterialIndex];
+	LPMaterial material = new Material();
 	aiColor3D outColor;
 	if (pMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Diffuse = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		material->MatD3D.Diffuse = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	if (pMaterial->Get(AI_MATKEY_COLOR_AMBIENT, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Ambient = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		material->MatD3D.Ambient = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	if (pMaterial->Get(AI_MATKEY_COLOR_SPECULAR, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Specular = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		material->MatD3D.Specular = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	if (pMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, outColor) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Emissive = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
+		material->MatD3D.Emissive = COLORVALUE(outColor.r * 255, outColor.g * 255, outColor.b * 255);
 	}
 	float out;
 	if (pMaterial->Get(AI_MATKEY_OPACITY, out) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Opacity = out * 255;
+		material->MatD3D.Opacity = out * 255;
 	}
 	if (pMaterial->Get(AI_MATKEY_SHININESS, out) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Opacity = out * 255;
+		material->MatD3D.Opacity = out * 255;
 	}
 	float outShininess;
 	if (pMaterial->Get(AI_MATKEY_SHININESS, outShininess) == aiReturn_SUCCESS)
 	{
-		pMesh->Material->MatD3D.Power = outShininess;
+		material->MatD3D.Power = outShininess;
 	}
 	if (pMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0)
 	{
@@ -359,8 +374,12 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 		if (pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &aistrPath, nullptr, nullptr, nullptr, nullptr, nullptr) == AI_SUCCESS)
 		{
 			std::string TextureFileName = aistrPath.C_Str();
-			pMesh->Material->pTexture = TextureFileName;
+			material->pTexture = TextureFileName;
 		}
+	}
+	if (material != NULL && !material->pTexture.empty())
+	{
+		pMesh->Material = material;
 	}
 	return pMesh;
 }
@@ -385,44 +404,44 @@ std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LP
 			std::string boneName = pChannle->mNodeName.C_Str();
 			std::map<double, LPAnimationKeyFrame> keyFramesMap;
 
-			for (i = 0; i < pChannle->mNumRotationKeys; i++)
+			for (int a = 0; a < pChannle->mNumRotationKeys; a++)
 			{
-				double keyTime = pChannle->mRotationKeys[i].mTime;
+				double keyTime = pChannle->mRotationKeys[a].mTime;
 
 				if (keyFramesMap.count(keyTime))
 				{
-					keyFramesMap[keyTime]->Rotation.x = pChannle->mRotationKeys[i].mValue.x;
-					keyFramesMap[keyTime]->Rotation.y = pChannle->mRotationKeys[i].mValue.y;
-					keyFramesMap[keyTime]->Rotation.z = pChannle->mRotationKeys[i].mValue.z;
+					keyFramesMap[keyTime]->Rotation.x = pChannle->mRotationKeys[a].mValue.x;
+					keyFramesMap[keyTime]->Rotation.y = pChannle->mRotationKeys[a].mValue.y;
+					keyFramesMap[keyTime]->Rotation.z = pChannle->mRotationKeys[a].mValue.z;
 				}
 				else
 				{
 					LPAnimationKeyFrame keyFrame = new AnimationKeyFrame();
 					keyFrame->Time = (float)keyTime;
-					keyFrame->Rotation.x = pChannle->mRotationKeys[i].mValue.x;
-					keyFrame->Rotation.y = pChannle->mRotationKeys[i].mValue.y;
-					keyFrame->Rotation.z = pChannle->mRotationKeys[i].mValue.z;
+					keyFrame->Rotation.x = pChannle->mRotationKeys[a].mValue.x;
+					keyFrame->Rotation.y = pChannle->mRotationKeys[a].mValue.y;
+					keyFrame->Rotation.z = pChannle->mRotationKeys[a].mValue.z;
 					keyFramesMap[keyTime] = keyFrame;
 				}
 			}
 
-			for (i = 0; i < pChannle->mNumPositionKeys; i++)
+			for (int b = 0; b < pChannle->mNumPositionKeys; b++)
 			{
-				double keyTime = pChannle->mPositionKeys[i].mTime;
+				double keyTime = pChannle->mPositionKeys[b].mTime;
 
 				if (keyFramesMap.count(keyTime))
 				{
-					keyFramesMap[keyTime]->Translation.x = pChannle->mPositionKeys[i].mValue.x;
-					keyFramesMap[keyTime]->Translation.y = pChannle->mPositionKeys[i].mValue.y;
-					keyFramesMap[keyTime]->Translation.z = pChannle->mPositionKeys[i].mValue.z;
+					keyFramesMap[keyTime]->Translation.x = pChannle->mPositionKeys[b].mValue.x;
+					keyFramesMap[keyTime]->Translation.y = pChannle->mPositionKeys[b].mValue.y;
+					keyFramesMap[keyTime]->Translation.z = pChannle->mPositionKeys[b].mValue.z;
 				}
 				else
 				{
 					LPAnimationKeyFrame keyFrame = new AnimationKeyFrame();
 					keyFrame->Time = (float)keyTime;
-					keyFrame->Translation.x = pChannle->mPositionKeys[i].mValue.x;
-					keyFrame->Translation.y = pChannle->mPositionKeys[i].mValue.y;
-					keyFrame->Translation.z = pChannle->mPositionKeys[i].mValue.z;
+					keyFrame->Translation.x = pChannle->mPositionKeys[b].mValue.x;
+					keyFrame->Translation.y = pChannle->mPositionKeys[b].mValue.y;
+					keyFrame->Translation.z = pChannle->mPositionKeys[b].mValue.z;
 					keyFramesMap[keyTime] = keyFrame;
 				}
 			}
@@ -433,8 +452,8 @@ std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LP
 				keyFrames.push_back(keyFrame);
 			}
 			pAnimClip->boneKeyFrames[boneName] = keyFrames;
-			animations.push_back(pAnimClip);
 		}
+		animations.push_back(pAnimClip);
 	}
 
 	return animations;
