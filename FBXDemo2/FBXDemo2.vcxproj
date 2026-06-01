@@ -24,6 +24,7 @@
     <ProjectGuid>{e294b7ba-42d4-4c6b-add7-bc83a5e7705b}</ProjectGuid>
     <RootNamespace>FBXDemo2</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>FBXDemo2_forfbxsdk</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
