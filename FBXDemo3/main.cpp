@@ -629,18 +629,18 @@ void Direct3D_Render(HWND hwnd, FLOAT fTimeDelta)
 	//	g_pd3dDevice->SetTexture(0, g_pTextures2[i]);
 	//	g_pCubeMesh2->DrawSubset(i);
 	//}
-		// 步骤1：构造修正矩阵
-	D3DXMATRIX matFBXToD3D = GetFBXToD3DMatrix();
+	//	// 步骤1：构造修正矩阵
+	//D3DXMATRIX matFBXToD3D = GetFBXToD3DMatrix();
 
-	// 步骤2：设置World矩阵（核心：将修正矩阵传入）
-	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matFBXToD3D);
+	//// 步骤2：设置World矩阵（核心：将修正矩阵传入）
+	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &matFBXToD3D);
 
-	g_pAnimController->AdvanceTime(fTimeDelta, NULL);
+	//g_pAnimController->AdvanceTime(fTimeDelta, NULL);
 
-	UpdateFrameMatrices(g_pFrameRoot, &matFBXToD3D);
+	//UpdateFrameMatrices(g_pFrameRoot, &matFBXToD3D);
 
 	// 绘制蒙皮网格
-	DrawFrame(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
+	DrawFrame2(g_pd3dDevice, g_pFrameRoot, g_pMeshContainer);
 
 	// 绘制草坪
 	D3DXMATRIX matWorld;
