@@ -36,12 +36,26 @@ FBXModel::~FBXModel()
 
 //#define ASSIMP_LOAD_FLAGS 0
 
+
+
+	// 导入模型使用的标志
+	// aiProcess_ConvertToLeftHanded: Assimp 导入的模型是以 OpenGL 的右手坐标系为基础的，将模型转换成 DirectX 的左手坐标系
+	// aiProcess_Triangulate：模型设计师可能使用多边形对模型进行建模的，对于用多边形建模的模型，将它们都转换成基于三角形建模
+	// aiProcess_FixInfacingNormals：建模软件都是双面显示的，所以设计师不会在意顶点绕序方向，部分面会被剔除无法正常显示，需要翻转过来
+	// aiProcess_LimitBoneWeights: 限制网格的骨骼权重最多为 4 个，其余权重无需处理
+	// aiProcess_GenBoundBoxes: 对每个网格，都生成一个 AABB 体积盒
+	// aiProcess_JoinIdenticalVertices: 将位置相同的顶点合并为一个顶点，从而减少模型的顶点数量，优化内存使用和提升渲染效率。
+uint32_t ModelImportFlag = aiProcess_ConvertToLeftHanded | aiProcess_Triangulate |
+aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights |
+aiProcess_GenBoundingBoxes | aiProcess_JoinIdenticalVertices;
+
+
 bool FBXModel::Load(std::string modelFile)
 {
 	Assimp::Importer importer;
 	importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
-	const aiScene* scene = importer.ReadFile(modelFile, ASSIMP_LOAD_FLAGS);
+	const aiScene* scene = importer.ReadFile(modelFile, ModelImportFlag);
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
 		std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
@@ -93,6 +107,10 @@ LPModelData FBXModel::FetchScene(const aiScene* pScene)
 		for (unsigned int i = 0; i < pScene->mNumMeshes; i++)
 		{
 			const aiMesh* paiSubMesh = pScene->mMeshes[i];
+			if (paiSubMesh->mNumVertices == 0)
+			{
+				continue;
+			}
 			LPMESH mesh = FetchMesh(paiSubMesh, pScene);
 			if (paiSubMesh->HasBones())
 			{
@@ -125,7 +143,7 @@ MATRIX _ToMatrix(const aiMatrix4x4& mxAI)
 
 MATRIX MatrixToD3D(const aiMatrix4x4& mxAI)
 {
-   MATRIX d3dMat;
+	MATRIX d3dMat;
 	d3dMat._11 = mxAI.a1;  d3dMat._12 = mxAI.b1;  d3dMat._13 = mxAI.c1;  d3dMat._14 = mxAI.d1;
 	d3dMat._21 = mxAI.a2;  d3dMat._22 = mxAI.b2;  d3dMat._23 = mxAI.c2;  d3dMat._24 = mxAI.d2;
 	d3dMat._31 = mxAI.a3;  d3dMat._32 = mxAI.b3;  d3dMat._33 = mxAI.c3;  d3dMat._34 = mxAI.d3;
@@ -198,7 +216,7 @@ const aiNode* GetSkeletonNode(const aiNode* pNode, const std::map<std::string, I
 	}
 	for (unsigned int i = 0; i < pNode->mNumChildren; i++)
 	{
-      const aiNode* pFoundNode = GetSkeletonNode(pNode->mChildren[i], Influences);
+		const aiNode* pFoundNode = GetSkeletonNode(pNode->mChildren[i], Influences);
 		if (pFoundNode != NULL)
 		{
 			return pFoundNode;
@@ -238,7 +256,7 @@ LPAnimationKeyFrame CreateDefaultAnimationKeyFrame(float keyTime, const aiVector
 	keyFrame->Translation.x = defaultPosition.x;
 	keyFrame->Translation.y = defaultPosition.y;
 	keyFrame->Translation.z = defaultPosition.z;
-   keyFrame->Scale.x = defaultScale.x;
+	keyFrame->Scale.x = defaultScale.x;
 	keyFrame->Scale.y = defaultScale.y;
 	keyFrame->Scale.z = defaultScale.z;
 	keyFrame->Rotation.x = defaultRotation.x;
@@ -265,7 +283,7 @@ void GetDefaultNodeTransform(const aiScene* pScene, const std::string& nodeName,
 		return;
 	}
 
- node->mTransformation.Decompose(defaultScale, defaultRotation, defaultPosition);
+	node->mTransformation.Decompose(defaultScale, defaultRotation, defaultPosition);
 }
 
 LPFRAME FBXModel::FetchSkeleton(const aiScene* pScene, LPModelData modelData)
@@ -279,7 +297,7 @@ LPFRAME FBXModel::FetchSkeleton(const aiScene* pScene, LPModelData modelData)
 			const aiNode* temp = GetSkeletonNode(pScene->mRootNode->mChildren[i], modelData->Meshs[0]->Influences);
 			if (temp != NULL)
 			{
-               ainode = pScene->mRootNode->mChildren[i];
+				ainode = pScene->mRootNode->mChildren[i];
 				break;
 			}
 		}
@@ -302,7 +320,7 @@ LPFRAME FBXModel::FetchSkeletons(const aiNode* pNode, int parentIndex, int& bone
 	boneIndex += 1;
 	pFrame = new FRAME;
 	pFrame->Name = lName;
- pFrame->TransformationMatrix = MatrixToD3D(pNode->mTransformation);
+	pFrame->TransformationMatrix = MatrixToD3D(pNode->mTransformation);
 	pFrame->ParentBoneIndex = parentIndex;
 	pFrame->BoneIndex = boneIndex;
 
@@ -362,80 +380,90 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 			vertex.u = paiSubMesh->mTextureCoords[0][i].x;
 			vertex.v = paiSubMesh->mTextureCoords[0][i].y;
 		}
+		if (paiSubMesh->HasVertexColors(0))
+		{
+			vertex.r = paiSubMesh->mColors[0][i].r;
+			vertex.g = paiSubMesh->mColors[0][i].g;
+			vertex.b = paiSubMesh->mColors[0][i].b;
+			vertex.a = paiSubMesh->mColors[0][i].a;
+		}
 		pMesh->Vertices.push_back(vertex);
 	}
 	// 加载索引数据
 	pMesh->FaceCount = paiSubMesh->mNumFaces;
 	for (unsigned int i = 0; i < paiSubMesh->mNumFaces; i++)
 	{
-		const aiFace& Face = paiSubMesh->mFaces[i];
-
-		for (unsigned int k = 0; k < Face.mNumIndices; k++)
-		{
-			pMesh->Indices.push_back(Face.mIndices[k]);
-		}
+		pMesh->Indices.push_back(paiSubMesh->mFaces[i].mIndices[0]);
+		pMesh->Indices.push_back(paiSubMesh->mFaces[i].mIndices[1]);
+		pMesh->Indices.push_back(paiSubMesh->mFaces[i].mIndices[2]);
 	}
-	// 加载骨骼数据
-	for (unsigned int i = 0; i < paiSubMesh->mNumBones; i++)
+	if (paiSubMesh->HasBones())
 	{
-		aiBone* pBone = paiSubMesh->mBones[i];
-		std::string pBoneName = pBone->mName.C_Str();
-		Influence influence;
-     influence.BoneSpaceToModelSpace_BoneOffset = MatrixToD3D(pBone->mOffsetMatrix);
-		influence.count = pBone->mNumWeights;
-		for (unsigned int k = 0; k < pBone->mNumWeights; k++)
+		pMesh->HasBones = true;
+		// 加载骨骼数据
+		for (unsigned int i = 0; i < paiSubMesh->mNumBones; i++)
 		{
-			unsigned int VertexID = pBone->mWeights[k].mVertexId;
-			float Weight = pBone->mWeights[k].mWeight;
+			aiBone* pBone = paiSubMesh->mBones[i];
+			std::string pBoneName = pBone->mName.C_Str();
+			Influence influence;
+			influence.BoneSpaceToModelSpace_BoneOffset = MatrixToD3D(pBone->mOffsetMatrix);
+			influence.count = pBone->mNumWeights;
+			for (unsigned int k = 0; k < pBone->mNumWeights; k++)
+			{
+				unsigned int VertexID = pBone->mWeights[k].mVertexId;
+				float Weight = pBone->mWeights[k].mWeight;
 
-			influence.Vertices.push_back(VertexID);
-			influence.Weights.push_back(Weight);
+				influence.Vertices.push_back(VertexID);
+				influence.Weights.push_back(Weight);
 
-			pMesh->VerticeInfluences[VertexID].push_back(Weight);
+				pMesh->VerticeInfluences[VertexID].push_back(Weight);
+			}
+			pMesh->Influences[pBoneName] = influence;
 		}
-		pMesh->Influences[pBoneName] = influence;
 	}
 	// 获取材质
 	const aiMaterial* pMaterial = pScene->mMaterials[paiSubMesh->mMaterialIndex];
 	LPMaterial material = new Material();
 	aiColor3D outColor;
 
-	if (pMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, outColor) == aiReturn_SUCCESS)
-	{
-		material->MatD3D.Diffuse = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
-	}
-	if (pMaterial->Get(AI_MATKEY_COLOR_AMBIENT, outColor) == aiReturn_SUCCESS)
-	{
-		material->MatD3D.Ambient = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
-	}
-	if (pMaterial->Get(AI_MATKEY_COLOR_SPECULAR, outColor) == aiReturn_SUCCESS)
-	{
-		material->MatD3D.Specular = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
-	}
-	if (pMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, outColor) == aiReturn_SUCCESS)
-	{
-		material->MatD3D.Emissive = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
-	}
+	//if (pMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, outColor) == aiReturn_SUCCESS)
+	//{
+	//	material->MatD3D.Diffuse = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
+	//}
+	//if (pMaterial->Get(AI_MATKEY_COLOR_AMBIENT, outColor) == aiReturn_SUCCESS)
+	//{
+	//	material->MatD3D.Ambient = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
+	//}
+	//if (pMaterial->Get(AI_MATKEY_COLOR_SPECULAR, outColor) == aiReturn_SUCCESS)
+	//{
+	//	material->MatD3D.Specular = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
+	//}
+	//if (pMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, outColor) == aiReturn_SUCCESS)
+	//{
+	//	material->MatD3D.Emissive = COLORVALUE(outColor.r, outColor.g, outColor.b, 1.0f);
+	//}
 
-	float out = 0.0f;
-	if (pMaterial->Get(AI_MATKEY_OPACITY, out) == aiReturn_SUCCESS)
-	{
-		material->MatD3D.Opacity = out;
-	}
+	//float out = 0.0f;
+	//if (pMaterial->Get(AI_MATKEY_OPACITY, out) == aiReturn_SUCCESS)
+	//{
+	//	material->MatD3D.Opacity = out;
+	//}
 
-	float outShininess = 0.0f;
-	if (pMaterial->Get(AI_MATKEY_SHININESS, outShininess) == aiReturn_SUCCESS)
-	{
-		material->MatD3D.Power = outShininess;
-	}
+	//float outShininess = 0.0f;
+	//if (pMaterial->Get(AI_MATKEY_SHININESS, outShininess) == aiReturn_SUCCESS)
+	//{
+	//	material->MatD3D.Power = outShininess;
+	//}
 
-	if (pMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+	// 模型文件携带的材质/纹理文件路径
+	aiString materialPath;
+	if (pMaterial->GetTexture(aiTextureType_EMISSIVE, 0, &materialPath) == aiReturn_SUCCESS)
 	{
-		aiString aistrPath;
-		if (pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &aistrPath, nullptr, nullptr, nullptr, nullptr, nullptr) == AI_SUCCESS)
-		{
-			material->pTexture = aistrPath.C_Str();
-		}
+		material->TexturePath = materialPath.C_Str();
+	}
+	else if (pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &materialPath) == aiReturn_SUCCESS)
+	{
+		material->TexturePath = materialPath.C_Str();
 	}
 
 	pMesh->Material = material;
@@ -455,7 +483,8 @@ std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LP
 		{
 			ticksPerSecond = 25.0;
 		}
-
+		float ticksPerSecond = animation->mTicksPerSecond != 0 ? animation->mTicksPerSecond : 25.0f;
+		float timeInTicks = 1.0f / ticksPerSecond;
 		LPAnimationClip pAnimClip = new AnimationClip();
 		pAnimClip->Name = animation->mName.C_Str();
 		pAnimClip->duration = static_cast<float>(durationInTicks / ticksPerSecond);
@@ -468,12 +497,33 @@ std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LP
 			std::map<double, LPAnimationKeyFrame> keyFramesMap;
 			aiVector3D defaultPosition;
 			aiQuaternion defaultRotation;
-            aiVector3D defaultScale;
+			aiVector3D defaultScale;
 			GetDefaultNodeTransform(pScene, boneName, defaultPosition, defaultRotation, defaultScale);
+
+			for (unsigned int b = 0; b < pChannle->mNumPositionKeys; b++)
+			{
+				double keyTime = pChannle->mPositionKeys[b].mTime * timeInTicks;
+				const aiVector3D& position = pChannle->mPositionKeys[b].mValue;
+
+				if (keyFramesMap.count(keyTime))
+				{
+					keyFramesMap[keyTime]->Translation.x = position.x;
+					keyFramesMap[keyTime]->Translation.y = position.y;
+					keyFramesMap[keyTime]->Translation.z = position.z;
+				}
+				else
+				{
+					LPAnimationKeyFrame keyFrame = CreateDefaultAnimationKeyFrame(static_cast<float>(keyTime), defaultPosition, defaultRotation, defaultScale);
+					keyFrame->Translation.x = position.x;
+					keyFrame->Translation.y = position.y;
+					keyFrame->Translation.z = position.z;
+					keyFramesMap[keyTime] = keyFrame;
+				}
+			}
 
 			for (unsigned int a = 0; a < pChannle->mNumRotationKeys; a++)
 			{
-				double keyTime = pChannle->mRotationKeys[a].mTime;
+				double keyTime = pChannle->mRotationKeys[a].mTime * timeInTicks;
 				const aiQuaternion& rotation = pChannle->mRotationKeys[a].mValue;
 
 				if (keyFramesMap.count(keyTime))
@@ -485,7 +535,7 @@ std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LP
 				}
 				else
 				{
-                  LPAnimationKeyFrame keyFrame = CreateDefaultAnimationKeyFrame(static_cast<float>(keyTime), defaultPosition, defaultRotation, defaultScale);
+					LPAnimationKeyFrame keyFrame = CreateDefaultAnimationKeyFrame(static_cast<float>(keyTime), defaultPosition, defaultRotation, defaultScale);
 					keyFrame->Rotation.x = rotation.x;
 					keyFrame->Rotation.y = rotation.y;
 					keyFrame->Rotation.z = rotation.z;
@@ -494,30 +544,9 @@ std::vector<LPAnimationClip> FBXModel::FetchAnimations(const aiScene* pScene, LP
 				}
 			}
 
-			for (unsigned int b = 0; b < pChannle->mNumPositionKeys; b++)
-			{
-				double keyTime = pChannle->mPositionKeys[b].mTime;
-				const aiVector3D& position = pChannle->mPositionKeys[b].mValue;
-
-				if (keyFramesMap.count(keyTime))
-				{
-					keyFramesMap[keyTime]->Translation.x = position.x;
-					keyFramesMap[keyTime]->Translation.y = position.y;
-					keyFramesMap[keyTime]->Translation.z = position.z;
-				}
-				else
-				{
-                  LPAnimationKeyFrame keyFrame = CreateDefaultAnimationKeyFrame(static_cast<float>(keyTime), defaultPosition, defaultRotation, defaultScale);
-					keyFrame->Translation.x = position.x;
-					keyFrame->Translation.y = position.y;
-					keyFrame->Translation.z = position.z;
-					keyFramesMap[keyTime] = keyFrame;
-				}
-			}
-
 			for (unsigned int c = 0; c < pChannle->mNumScalingKeys; c++)
 			{
-				double keyTime = pChannle->mScalingKeys[c].mTime;
+				double keyTime = pChannle->mScalingKeys[c].mTime * timeInTicks;
 				const aiVector3D& scale = pChannle->mScalingKeys[c].mValue;
 
 				if (keyFramesMap.count(keyTime))

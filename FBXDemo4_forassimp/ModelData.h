@@ -106,6 +106,7 @@ typedef struct _Vertex
 	float x, y, z;
 	float nx, ny, nz;
 	float u, v;
+	float r, g, b, a; // 可选：顶点颜色（RGBA）
 }Vertex;
 
 typedef struct _Influence
@@ -119,7 +120,7 @@ typedef struct _Influence
 typedef struct _Material
 {
 	MATERIALInfo  MatD3D;
-	std::string pTexture;
+	std::string TexturePath;
 }Material, * LPMaterial;
 
 typedef struct _MESH
@@ -128,6 +129,7 @@ typedef struct _MESH
 
 	int VertexCount;
 	int FaceCount;
+	bool HasBones;
 	std::vector<Vertex> Vertices;
 	std::vector<WORD>  Indices;//默认dx支持16位索引
 	//std::vector<DWORD>  Attributes;
