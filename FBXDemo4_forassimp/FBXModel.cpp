@@ -253,7 +253,7 @@ bool FBXModel::Load(const std::string modelFile)
 	ReleaseModelData();
 
 	Assimp::Importer importer;
-	//importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
+	//importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);//解决FBX根节点多的问题
 
 	const aiScene* pScene = importer.ReadFile(modelFile, ModelImportFlag);
 	if (pScene == NULL || (pScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || pScene->mRootNode == NULL)
