@@ -1,28 +1,39 @@
 #ifndef _FBXModel_h_
 #define _FBXModel_h_
+
 #include <assimp/Importer.hpp>
-#include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include "ModelData.h"
-#include <iostream>
+#include <assimp/scene.h>
+#include <map>
 #include <string>
-#include <iomanip> // 用于格式化浮点数输出（保留 2 位小数）
+#include "ModelData.h"
 
-
-//FBX 模型
 class FBXModel
 {
 public:
 	FBXModel();
 	~FBXModel();
-	bool Load(std::string modelFile);
+
+	bool Load(const std::string modelFile);
+
 	LPModelData m_modelData;
+
 private:
-	LPModelData FetchScene(const aiScene* pScene);
-	LPFRAME FetchSkeleton(const aiScene* pScene, LPModelData modelData);
-	LPFRAME FetchSkeletons(const aiNode* pNode, int parentIndex, int& boneIndex);
-	LPMESH FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene);
-	std::vector<LPAnimationClip> FetchAnimations(const aiScene* pScene, LPModelData modelData);
+	void ReleaseModelData();
+	LPModelData FetchModelData(const aiScene* pScene);
+
+	void FetchMaterials(const aiScene* pScene, LPModelData modelData);
+	LPMaterial FetchMaterial(const aiMaterial* pMaterial);
+
+	void FetchMeshs(const aiScene* pScene,LPModelData modelData,std::map<std::string, int>& boneNameToIndex,std::map<std::string, MATRIX>& boneOffsetByName);
+	LPMESH FetchMesh(const aiMesh* pMesh, const aiScene* pScene, std::map<std::string, int>& boneNameToIndex, std::map<std::string, MATRIX>& boneOffsetByName);
+
+	void FetchAnimations(const aiScene* pScene,LPModelData modelData,const std::map<std::string, int>& boneNameToIndex);
+	LPAnimationClip FetchAnimation(const aiAnimation* pAnimation,const aiScene* pScene,const std::map<std::string, int>& boneNameToIndex);
+
+	//有问题部分
+	void FetchBones(const aiScene* pScene, LPModelData modelData, std::map<std::string, int>& boneNameToIndex, const std::map<std::string, MATRIX>& boneOffsetByName);
+	LPBoneNode BuildBoneHierarchy(const aiNode* pNode, const std::map<std::string, int>& boneNameToIndex, LPModelData modelData);
 };
 
 #endif //_FBXModel_h_

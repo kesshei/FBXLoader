@@ -1,16 +1,26 @@
-﻿#include <vector>
-#include <map>
+﻿#include <map>
+#include <string>
+#include <vector>
+
 #ifndef _ModelData_h_
 #define _ModelData_h_
+
 // 手动定义 D3DX_PI（值与官方定义一致：3.14159265358979323846f）
 #ifndef PI
 #define PI 3.14159265358979323846f
 #endif
 
+// 每个表面的索引数，（根据上面的导入标志，导入的模型应该都是严格的三角形网格）
+#define Model_INDICES_PER_FACE 3
+// 定义每个骨骼数据中子项的个数（根据上面的导入标志，现在严格限定每个顶点被最多4根骨头影响）
+#define Model_BONE_DATACNT 4
+// 定义最大可支持的骨头数量
+#define Model_MAX_BONES 256
+
 typedef unsigned long       DWORD;
 typedef int                 BOOL;
 typedef unsigned char       BYTE;
-typedef unsigned short      WORD;
+typedef unsigned int        UINT;
 typedef float               FLOAT;
 typedef DWORD* PDWORD;
 
@@ -96,6 +106,15 @@ typedef struct _MATERIALProperties {
 	VECTOR4   Emissive;       /* Emissive color RGB */
 	float     Power;          /* Sharpness if specular highlight */
 	float     Opacity;        /* Transparency factor */
+	_MATERIALProperties()
+		: Ambient(0.0f, 0.0f, 0.0f, 1.0f),
+		Diffuse(1.0f, 1.0f, 1.0f, 1.0f),
+		Specular(0.0f, 0.0f, 0.0f, 1.0f),
+		Emissive(0.0f, 0.0f, 0.0f, 1.0f),
+		Power(0.0f),
+		Opacity(1.0f)
+	{
+	}
 } MATERIALProperties;
 
 typedef struct _Vertex
@@ -121,21 +140,19 @@ typedef struct _MESH
 {
 	std::string Name;
 
-	int VertexCount;
 	std::vector<Vertex> Vertices;
-	int FacesCount;
-	std::vector<WORD>  Faces;//默认dx支持16位索引
+	std::vector<UINT>  Faces;//默认dx支持16位索引
 
 	int Material_index; // 材质索引，指向模型数据中的材质列表
 
 	_MESH()
-		: Name(""), VertexCount(0), FacesCount(0), Material_index(0) {
+		: Name(""), Material_index(-1) {
 	}
 }MESH, * LPMESH;
 
 typedef struct _AnimationKeyFrame
 {
-	FLOAT Time;
+	double Time;
 	//Position 对应的这个
 	VECTOR3      Translation;
 	VECTOR3      Scale;
@@ -152,11 +169,10 @@ typedef struct _AnimationClip
 {
 	std::string Name;
 	float duration;             // 动画总时长（秒）
-	int keyframes;              //帧数
 	std::map<std::string, std::vector<LPAnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
 
 	_AnimationClip()
-		: Name(""), duration(0.0f), keyframes(0) {
+		: Name(""), duration(0.0f){
 	}
 }AnimationClip, * LPAnimationClip;
 
@@ -165,33 +181,43 @@ typedef struct _Bone
 {
 	std::string Name;
 	int    ParentBoneIndex;
-	MATRIX BoneSpaceMatrix;
-	MATRIX ParentBoneSpaceMatrix;
-	_Bone() : Name(""), BoneSpaceMatrix(), ParentBoneSpaceMatrix(), ParentBoneIndex(-1) {}
+	MATRIX LocalBindPose;
+	MATRIX OffsetMatrix;
+
+	_Bone() 
+		: Name(""),
+		ParentBoneIndex(-1),
+		LocalBindPose(),
+		OffsetMatrix() 
+	{
+	}
 }Bone, * LPBone;
 
 typedef struct _BoneNode
 {
-	LPBone pBone;              //指向骨骼数据
-	LPBone pFrameSibling;      //兄弟节点指向下一个
-	LPBone pFrameFirstChild;   //指向第一个子节点
+	LPBone pBone;
+	struct _BoneNode* pFrameSibling;
+	struct _BoneNode* pFrameFirstChild;
+
+	_BoneNode()
+		: pBone(NULL), pFrameSibling(NULL), pFrameFirstChild(NULL) {
+	}
 }BoneNode, * LPBoneNode;
 
 //模型数据结构，包含骨骼、动画和网格等信息
 typedef struct _ModelData
 {
-	int MaterialsCount;                      // 材质数量
 	std::vector<LPMaterial> Materials;          // 材质列表 默认一个材质对象
 
-	int MeshsCount;                          // 网格数量
 	std::vector<LPMESH>  Meshs;              // 网格（带蒙皮信息） 默认至少一个网格对象
 
-	int BonesCount;                          // 骨骼数量
 	std::vector<LPBone> Bones;               // 骨骼列表 默认一个骨骼对象
 	BoneNode BoneHierarchyRoot;              // 骨骼层次结构根节点
 
-	int AnimationsCount;                     // 动画数量
 	std::vector<LPAnimationClip> Animations; // 动画列表 默认一个动画对象
+	_ModelData()
+		: BoneHierarchyRoot() {
+	}
 }ModelData, * LPModelData;
 
 #endif //_ModelData_h_
