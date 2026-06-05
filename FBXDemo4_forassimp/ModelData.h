@@ -58,25 +58,15 @@ struct MATRIX {
 		return m[row][col];
 	}
 };
-typedef struct _COLORVALUE {
-	float r;
-	float g;
-	float b;
-	float a;
-	// 1. 默认构造函数：初始化为黑色不透明（r=0, g=0, b=0, a=1）
-	_COLORVALUE() : r(0.0f), g(0.0f), b(0.0f), a(1.0f) {}
 
-	// 2. 三参数构造函数：指定 RGB（Alpha 默认为 1.0）
-	_COLORVALUE(float red, float green, float blue)
-		: r(red), g(green), b(blue), a(1.0f) {
-	}
-
-	// 3. 四参数构造函数：指定 RGBA 全通道
-	_COLORVALUE(float red, float green, float blue, float alpha)
-		: r(red), g(green), b(blue), a(alpha) {
-	}
-
-} COLORVALUE;
+typedef struct _VECTOR2 {
+	// VECTOR2 默认构造（可选，初始化为零向量）
+	_VECTOR2() : x(0.0f), y(0.0f) {}
+	// 带参数构造（方便赋值）
+	_VECTOR2(FLOAT _x, FLOAT _y) : x(_x), y(_y) {}
+	float x;
+	float y;
+} VECTOR2;
 
 typedef struct _VECTOR3 {
 	// VECTOR3 默认构造（可选，初始化为零向量）
@@ -88,139 +78,82 @@ typedef struct _VECTOR3 {
 	float z;
 } VECTOR3;
 
-typedef struct _MATERIALInfo {
-	COLORVALUE   Diffuse;        /* Diffuse color RGBA */
-	COLORVALUE   Ambient;        /* Ambient color RGB */
-	COLORVALUE   Specular;       /* Specular 'shininess' */
-	COLORVALUE   Emissive;       /* Emissive color RGB */
-	float        Power;       /* Sharpness if specular highlight */
-	float        Opacity;       /* Transparency factor */
-} MATERIALInfo;
+typedef struct _VECTOR4 {
+	// VECTOR4 默认构造（可选，初始化为零向量）
+	_VECTOR4() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {}
+	// 带参数构造（方便赋值）
+	_VECTOR4(FLOAT _x, FLOAT _y, FLOAT _z, FLOAT _w) : x(_x), y(_y), z(_z), w(_w) {}
+	float x;
+	float y;
+	float z;
+	float w;
+} VECTOR4;
+
+typedef struct _MATERIALProperties {
+	VECTOR4   Ambient;        /* Ambient color RGB */
+	VECTOR4   Diffuse;        /* Diffuse color RGBA */
+	VECTOR4   Specular;       /* Specular 'shininess' */
+	VECTOR4   Emissive;       /* Emissive color RGB */
+	float     Power;          /* Sharpness if specular highlight */
+	float     Opacity;        /* Transparency factor */
+} MATERIALProperties;
 
 typedef struct _Vertex
-{	// VECTOR3 默认构造（可选，初始化为零向量）
-	_Vertex() : x(0), y(0), z(0), nx(0), ny(0), nz(0), u(0), v(0) {}
-	// 带参数构造（方便赋值）
-	_Vertex(float _x, float _y, float _z, float _nx, float _ny, float _nz, float _u, float _v) : x(_x), y(_y), z(_z), nx(_nx), ny(_ny), nz(_nz), u(_u), v(_v) {}
-	_Vertex(float _x, float _y, float _z, float _u, float _v) : x(_x), y(_y), z(_z), u(_u), v(_v) {}
-	float x, y, z;
-	float nx, ny, nz;
-	float u, v;
-	float r, g, b, a; // 可选：顶点颜色（RGBA）
+{
+	VECTOR3  position;
+	VECTOR3  normal;
+	VECTOR2  texCoord;
+	VECTOR4  color; // 可选：顶点颜色（RGBA）
+
+	std::vector<unsigned long> Bones;
+	std::vector<float>         Weights;
 }Vertex;
 
-typedef struct _Influence
-{
-	int count;
-	std::vector<unsigned long> Vertices;
-	std::vector<float>         Weights;
-	MATRIX	                   BoneSpaceToModelSpace_BoneOffset;
-}Influence;
 
 typedef struct _Material
 {
-	MATERIALInfo  MatD3D;
+	MATERIALProperties  MatProps;
 	std::string TexturePath;
 }Material, * LPMaterial;
+
 
 typedef struct _MESH
 {
 	std::string Name;
 
 	int VertexCount;
-	int FaceCount;
-	bool HasBones;
 	std::vector<Vertex> Vertices;
-	std::vector<WORD>  Indices;//默认dx支持16位索引
-	//std::vector<DWORD>  Attributes;
-	LPMaterial   Material;
-	std::map<std::string, Influence> Influences;
-	std::map<unsigned int, std::vector<float>> VerticeInfluences;
+	int FacesCount;
+	std::vector<WORD>  Faces;//默认dx支持16位索引
+
+	int Material_index; // 材质索引，指向模型数据中的材质列表
 
 	_MESH()
-		: Name(""), VertexCount(0), FaceCount(0), Material(NULL) {
+		: Name(""), VertexCount(0), FacesCount(0), Material_index(0) {
 	}
 }MESH, * LPMESH;
-
-typedef struct _MESHCONTAINER
-{
-	std::string Name;
-	MESH		 pOrigMesh;
-}MESHCONTAINER, * LPMESHCONTAINER;
-
-typedef struct _FRAME
-{
-	std::string Name;
-	MATRIX		      TransformationMatrix;
-	LPMESHCONTAINER	  pMeshContainer;
-	struct _FRAME* pFrameSibling;   //兄弟节点指向下一个
-	struct _FRAME* pFrameFirstChild;//指向第一个子节点
-	MATRIX	          ParentTM;
-	MATRIX	          NodeTMInverse;
-	int               BoneIndex;
-	int               ParentBoneIndex;
-	//Material	      pMaterial;
-	WORD              MaterialID;
-	_FRAME() : Name(""), TransformationMatrix(), pMeshContainer(), pFrameSibling(NULL), pFrameFirstChild(NULL), ParentTM(), NodeTMInverse(), BoneIndex(0), ParentBoneIndex(-1), MaterialID(0) {}
-}FRAME, * LPFRAME;
-
-typedef struct _KEY_VECTOR3
-{
-	FLOAT Time;
-	VECTOR3 Value;
-} KEY_VECTOR3, * LPKEY_VECTOR3;
-
-typedef struct _QUATERNION
-{
-public:
-	// 默认构造（类内实现）
-	_QUATERNION() : x(0.0f), y(0.0f), z(0.0f), w(1.0f) {}
-	// 带参数构造（类内实现，关键修复：解决链接错误）
-	_QUATERNION(FLOAT _x, FLOAT _y, FLOAT _z, FLOAT _w)
-		: x(_x), y(_y), z(_z), w(_w) {
-	}
-	FLOAT x, y, z, w;
-} QUATERNION, * LPDQUATERNION;
-
-typedef struct _KEY_QUATERNION
-{
-	FLOAT Time;
-	QUATERNION Value;
-} KEY_QUATERNION, * LPXKEY_QUATERNION;
 
 typedef struct _AnimationKeyFrame
 {
 	FLOAT Time;
 	//Position 对应的这个
 	VECTOR3      Translation;
-  VECTOR3      Scale;
-	QUATERNION   Rotation;
-	//VECTOR3      Scale; //默认不用这个
-	// 默认构造函数（C++03 兼容）
+	VECTOR3      Scale;
+	VECTOR4      Rotation;
 	_AnimationKeyFrame() {
 		Time = 0.0f;                          // 时间默认从 0 开始
-       Scale = VECTOR3(1.0f, 1.0f, 1.0f);    // 默认单位缩放（避免缩放为 0 导致模型消失）
-		Rotation = QUATERNION(0.0f, 0.0f, 0.0f, 1.0f); // 单位四元数（无旋转）
+        Scale = VECTOR3(1.0f, 1.0f, 1.0f);    // 默认单位缩放（避免缩放为 0 导致模型消失）
+		Rotation = VECTOR4(0.0f, 0.0f, 0.0f, 1.0f); // 单位四元数（无旋转）
 		Translation = VECTOR3(0.0f, 0.0f, 0.0f); // 零平移
 	}
 }AnimationKeyFrame, * LPAnimationKeyFrame;
-//
-//typedef struct _AnimationKeyFrame
-//{
-//	const char* Name;
-//	FLOAT Time;
-//	std::vector<VECTOR3>      Scales; //默认不用这个
-//	std::vector<QUATERNION>   Rotations;
-//	std::vector<VECTOR3>      Translations;
-//}AnimationKeyFrame, * LPAnimationKeyFrame;
 
 typedef struct _AnimationClip
 {
 	std::string Name;
 	float duration;             // 动画总时长（秒）
 	int keyframes;              //帧数
-	//std::vector<AnimationKeyFrame>      AnimationKeys;
-	std::map<std::string, std::vector<AnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
+	std::map<std::string, std::vector<LPAnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
 
 	_AnimationClip()
 		: Name(""), duration(0.0f), keyframes(0) {
@@ -228,15 +161,37 @@ typedef struct _AnimationClip
 }AnimationClip, * LPAnimationClip;
 
 
+typedef struct _Bone
+{
+	std::string Name;
+	int    ParentBoneIndex;
+	MATRIX BoneSpaceMatrix;
+	MATRIX ParentBoneSpaceMatrix;
+	_Bone() : Name(""), BoneSpaceMatrix(), ParentBoneSpaceMatrix(), ParentBoneIndex(-1) {}
+}Bone, * LPBone;
+
+typedef struct _BoneNode
+{
+	LPBone pBone;              //指向骨骼数据
+	LPBone pFrameSibling;      //兄弟节点指向下一个
+	LPBone pFrameFirstChild;   //指向第一个子节点
+}BoneNode, * LPBoneNode;
+
+//模型数据结构，包含骨骼、动画和网格等信息
 typedef struct _ModelData
 {
-	LPFRAME                       Bone;             // 骨骼列表 默认一个骨骼对象
-	std::map<int, std::string>    BoneNameToIndex;  // 骨骼名称到索引的映射
-	std::vector<LPAnimationClip>  Animations;       // 动画列表 默认一个动画对象
-	std::vector<LPMESH>           Meshs;            // 网格（带蒙皮信息） 默认至少一个网格对象
-	_ModelData()
-		: Bone(NULL) {
-	}
+	int MaterialsCount;                      // 材质数量
+	std::vector<LPMaterial> Materials;          // 材质列表 默认一个材质对象
+
+	int MeshsCount;                          // 网格数量
+	std::vector<LPMESH>  Meshs;              // 网格（带蒙皮信息） 默认至少一个网格对象
+
+	int BonesCount;                          // 骨骼数量
+	std::vector<LPBone> Bones;               // 骨骼列表 默认一个骨骼对象
+	BoneNode BoneHierarchyRoot;              // 骨骼层次结构根节点
+
+	int AnimationsCount;                     // 动画数量
+	std::vector<LPAnimationClip> Animations; // 动画列表 默认一个动画对象
 }ModelData, * LPModelData;
 
 #endif //_ModelData_h_

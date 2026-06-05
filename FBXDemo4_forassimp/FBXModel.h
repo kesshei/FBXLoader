@@ -18,11 +18,6 @@ public:
 	bool Load(std::string modelFile);
 	LPModelData m_modelData;
 private:
-	//bool InitializeSdkObjects(FbxManager*& pManager, FbxScene*& pScene);
-	//bool DestroySdkObjects(FbxManager* pManager);
-	//bool LoadScene(FbxManager* pManager, FbxDocument* pScene, std::string modelFile);
-	//bool ConvertToStandardScene(FbxManager* pManager, FbxScene* pScene);
-private:
 	LPModelData FetchScene(const aiScene* pScene);
 	LPFRAME FetchSkeleton(const aiScene* pScene, LPModelData modelData);
 	LPFRAME FetchSkeletons(const aiNode* pNode, int parentIndex, int& boneIndex);

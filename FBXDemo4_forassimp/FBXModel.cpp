@@ -362,30 +362,30 @@ LPMESH FBXModel::FetchMesh(const aiMesh* paiSubMesh, const aiScene* pScene)
 		Vertex vertex;
 		if (paiSubMesh->HasPositions())
 		{
-			vertex.x = paiSubMesh->mVertices[i].x;
-			vertex.y = paiSubMesh->mVertices[i].y;
-			vertex.z = paiSubMesh->mVertices[i].z;
+			vertex.position.x = paiSubMesh->mVertices[i].x;
+			vertex.position.y = paiSubMesh->mVertices[i].y;
+			vertex.position.z = paiSubMesh->mVertices[i].z;
 		}
 
 		if (paiSubMesh->HasNormals())
 		{
-			vertex.nx = paiSubMesh->mNormals[i].x;
-			vertex.ny = paiSubMesh->mNormals[i].y;
-			vertex.nz = paiSubMesh->mNormals[i].z;
+			vertex.normal.x = paiSubMesh->mNormals[i].x;
+			vertex.normal.y = paiSubMesh->mNormals[i].y;
+			vertex.normal.z = paiSubMesh->mNormals[i].z;
 		}
 
 		// 注意这个地方只考虑一个纹理的情况，其实最多可以有八个，可以再做个循环进行加载
 		if (paiSubMesh->HasTextureCoords(0))
 		{
-			vertex.u = paiSubMesh->mTextureCoords[0][i].x;
-			vertex.v = paiSubMesh->mTextureCoords[0][i].y;
+			vertex.texCoord.x = paiSubMesh->mTextureCoords[0][i].x;
+			vertex.texCoord.y = paiSubMesh->mTextureCoords[0][i].y;
 		}
 		if (paiSubMesh->HasVertexColors(0))
 		{
-			vertex.r = paiSubMesh->mColors[0][i].r;
-			vertex.g = paiSubMesh->mColors[0][i].g;
-			vertex.b = paiSubMesh->mColors[0][i].b;
-			vertex.a = paiSubMesh->mColors[0][i].a;
+			vertex.color.x	 = paiSubMesh->mColors[0][i].r;
+			vertex.color.y = paiSubMesh->mColors[0][i].g;
+			vertex.color.z = paiSubMesh->mColors[0][i].b;
+			vertex.color.w = paiSubMesh->mColors[0][i].a;
 		}
 		pMesh->Vertices.push_back(vertex);
 	}
