@@ -15,6 +15,15 @@ namespace
 		aiProcess_GenBoundingBoxes |
 		aiProcess_JoinIdenticalVertices;
 
+	//assimp 的矩阵是行优先的，D3D 的矩阵也是行优先的，但它们的内存布局不同（assimp 是按列存储，D3D 是按行存储）。因此需要进行转置。
+	MATRIX AssimpToMatrix(const aiMatrix4x4& mxAI)
+	{
+		return MATRIX(
+			mxAI.a1, mxAI.b1, mxAI.c1, mxAI.d1,
+			mxAI.a2, mxAI.b2, mxAI.c2, mxAI.d2,
+			mxAI.a3, mxAI.b3, mxAI.c3, mxAI.d3,
+			mxAI.a4, mxAI.b4, mxAI.c4, mxAI.d4);
+	}
 	MATRIX MatrixToD3D(const aiMatrix4x4& mxAI)
 	{
 		return MATRIX(
@@ -22,40 +31,6 @@ namespace
 			mxAI.b1, mxAI.b2, mxAI.b3, mxAI.b4,
 			mxAI.c1, mxAI.c2, mxAI.c3, mxAI.c4,
 			mxAI.d1, mxAI.d2, mxAI.d3, mxAI.d4);
-	}
-
-	void ReleaseBoneHierarchy(LPBoneNode pNode)
-	{
-		if (pNode == NULL)
-		{
-			return;
-		}
-
-		ReleaseBoneHierarchy(pNode->pFrameFirstChild);
-		ReleaseBoneHierarchy(pNode->pFrameSibling);
-		delete pNode;
-	}
-
-	LPBoneNode AppendBoneNodeChain(LPBoneNode pHead, LPBoneNode pAppend)
-	{
-		if (pAppend == NULL)
-		{
-			return pHead;
-		}
-
-		if (pHead == NULL)
-		{
-			return pAppend;
-		}
-
-		LPBoneNode pTail = pHead;
-		while (pTail->pFrameSibling != NULL)
-		{
-			pTail = pTail->pFrameSibling;
-		}
-
-		pTail->pFrameSibling = pAppend;
-		return pHead;
 	}
 
 	const aiNode* FindNodeByName(const aiNode* pNode, const std::string& nodeName)
@@ -103,40 +78,6 @@ namespace
 			if (boneNameToIndex.find(nodeName) == boneNameToIndex.end())
 			{
 				boneNameToIndex[nodeName] = static_cast<int>(boneNameToIndex.size());
-			}
-		}
-	}
-
-	void ExpandBoneNameMap(const aiScene* pScene, std::map<std::string, int>& boneNameToIndex)
-	{
-		if (pScene == NULL || pScene->mRootNode == NULL)
-		{
-			return;
-		}
-
-		std::vector<std::string> seedNames;
-		for (std::map<std::string, int>::const_iterator it = boneNameToIndex.begin();it != boneNameToIndex.end();it++)
-		{
-			seedNames.push_back(it->first);
-		}
-
-		for (std::size_t i = 0; i < seedNames.size(); ++i)
-		{
-			const aiNode* pNode = FindNodeByName(pScene->mRootNode, seedNames[i]);
-			CollectAncestorChain(pNode, boneNameToIndex);
-		}
-
-		if (pScene->HasAnimations())
-		{
-			for (unsigned int i = 0; i < pScene->mNumAnimations; ++i)
-			{
-				const aiAnimation* pAnimation = pScene->mAnimations[i];
-				for (unsigned int j = 0; j < pAnimation->mNumChannels; ++j)
-				{
-					const aiNodeAnim* pChannel = pAnimation->mChannels[j];
-					const aiNode* pNode = FindNodeByName(pScene->mRootNode, pChannel->mNodeName.C_Str());
-					CollectAncestorChain(pNode, boneNameToIndex);
-				}
 			}
 		}
 	}
@@ -241,9 +182,6 @@ void FBXModel::ReleaseModelData()
 		delete pClip;
 	}
 
-	ReleaseBoneHierarchy(m_modelData->BoneHierarchyRoot.pFrameFirstChild);
-	ReleaseBoneHierarchy(m_modelData->BoneHierarchyRoot.pFrameSibling);
-
 	delete m_modelData;
 	m_modelData = NULL;
 }
@@ -274,13 +212,11 @@ LPModelData FBXModel::FetchModelData(const aiScene* pScene)
 	}
 
 	LPModelData modelData = new ModelData();
-	std::map<std::string, int> boneNameToIndex;
-	std::map<std::string, MATRIX> boneOffsetByName;
 
+	FetchNodeHierarchy(pScene->mRootNode, modelData);
 	FetchMaterials(pScene, modelData);
-	FetchMeshs(pScene, modelData, boneNameToIndex, boneOffsetByName);
-	FetchBones(pScene, modelData, boneNameToIndex, boneOffsetByName);
-	FetchAnimations(pScene, modelData, boneNameToIndex);
+	FetchMeshs(pScene, modelData);
+	FetchAnimations(pScene, modelData);
 
 	return modelData;
 }
@@ -359,7 +295,7 @@ LPMaterial FBXModel::FetchMaterial(const aiMaterial* pMaterial)
 	return material;
 }
 
-void FBXModel::FetchMeshs(const aiScene* pScene,LPModelData modelData,std::map<std::string, int>& boneNameToIndex,std::map<std::string, MATRIX>& boneOffsetByName)
+void FBXModel::FetchMeshs(const aiScene* pScene, LPModelData modelData)
 {
 	modelData->Meshs.clear();
 
@@ -368,9 +304,9 @@ void FBXModel::FetchMeshs(const aiScene* pScene,LPModelData modelData,std::map<s
 		return;
 	}
 
-	for (unsigned int i = 0; i < pScene->mNumMeshes;i++)
+	for (unsigned int i = 0; i < pScene->mNumMeshes; i++)
 	{
-		LPMESH pMesh = FetchMesh(pScene->mMeshes[i], pScene, boneNameToIndex, boneOffsetByName);
+		LPMESH pMesh = FetchMesh(pScene->mMeshes[i], pScene, modelData);
 		if (pMesh != NULL)
 		{
 			modelData->Meshs.push_back(pMesh);
@@ -378,7 +314,7 @@ void FBXModel::FetchMeshs(const aiScene* pScene,LPModelData modelData,std::map<s
 	}
 }
 
-LPMESH FBXModel::FetchMesh(const aiMesh* pMesh,const aiScene* pScene,std::map<std::string, int>& boneNameToIndex,std::map<std::string, MATRIX>& boneOffsetByName)
+LPMESH FBXModel::FetchMesh(const aiMesh* pMesh, const aiScene* pScene, LPModelData modelData)
 {
 	if (pMesh == NULL || pMesh->mNumVertices == 0)
 	{
@@ -387,11 +323,10 @@ LPMESH FBXModel::FetchMesh(const aiMesh* pMesh,const aiScene* pScene,std::map<st
 
 	LPMESH mesh = new MESH();
 	mesh->Name = pMesh->mName.C_Str();
-	mesh->Vertices.resize(pMesh->mNumVertices);
 
 	for (unsigned int i = 0; i < pMesh->mNumVertices; i++)
 	{
-		Vertex& vertex = mesh->Vertices[i];
+		Vertex vertex;
 
 		if (pMesh->HasPositions())
 		{
@@ -424,9 +359,8 @@ LPMESH FBXModel::FetchMesh(const aiMesh* pMesh,const aiScene* pScene,std::map<st
 		{
 			vertex.color = VECTOR4(1.0f, 1.0f, 1.0f, 1.0f);
 		}
+		mesh->Vertices.push_back(vertex);
 	}
-
-	mesh->Faces.resize(pMesh->mNumFaces * Model_INDICES_PER_FACE);
 
 	for (unsigned int i = 0; i < pMesh->mNumFaces; i++)
 	{
@@ -447,7 +381,7 @@ LPMESH FBXModel::FetchMesh(const aiMesh* pMesh,const aiScene* pScene,std::map<st
 	{
 		mesh->Material_index = static_cast<int>(pMesh->mMaterialIndex);
 	}
-
+	//获取骨骼数据
 	if (pMesh->HasBones())
 	{
 		for (unsigned int i = 0; i < pMesh->mNumBones; i++)
@@ -455,21 +389,17 @@ LPMESH FBXModel::FetchMesh(const aiMesh* pMesh,const aiScene* pScene,std::map<st
 			const aiBone* pBone = pMesh->mBones[i];
 			const std::string boneName = pBone->mName.C_Str();
 
-			std::map<std::string, int>::iterator boneIt = boneNameToIndex.find(boneName);
-			if (boneIt == boneNameToIndex.end())
+			std::map<std::string, int>::iterator boneIt = modelData->BoneMaping.find(boneName);
+			if (boneIt == modelData->BoneMaping.end())
 			{
-				boneNameToIndex[boneName] = static_cast<int>(boneNameToIndex.size());
-				boneIt = boneNameToIndex.find(boneName);
+				//insert error program
+				throw std::runtime_error("Bone not found in bone mapping: " + boneName);
 			}
+			UINT boneIndex = modelData->BoneMaping[boneName];
 
-			if (boneOffsetByName.find(boneName) == boneOffsetByName.end())
-			{
-				boneOffsetByName[boneName] = MatrixToD3D(pBone->mOffsetMatrix);
-			}
+			modelData->Bones[boneIndex]->BoneOffsetMatrix = AssimpToMatrix(pBone->mOffsetMatrix);
 
-			const unsigned long boneIndex = static_cast<unsigned long>(boneIt->second);
-
-			for (unsigned int w = 0; w < pBone->mNumWeights;w++)
+			for (unsigned int w = 0; w < pBone->mNumWeights; w++)
 			{
 				const unsigned int vertexId = pBone->mWeights[w].mVertexId;
 				if (vertexId >= mesh->Vertices.size())
@@ -485,91 +415,31 @@ LPMESH FBXModel::FetchMesh(const aiMesh* pMesh,const aiScene* pScene,std::map<st
 	return mesh;
 }
 
-void FBXModel::FetchBones(const aiScene* pScene,LPModelData modelData,std::map<std::string, int>& boneNameToIndex,const std::map<std::string, MATRIX>& boneOffsetByName)
-{
-	modelData->Bones.clear();
-	modelData->BoneHierarchyRoot = BoneNode();
-
-	if (pScene == NULL || pScene->mRootNode == NULL)
-	{
-		return;
-	}
-
-	ExpandBoneNameMap(pScene, boneNameToIndex);
-
-	if (boneNameToIndex.empty())
-	{
-		return;
-	}
-
-	modelData->Bones.resize(boneNameToIndex.size(), NULL);
-
-	for (std::map<std::string, int>::const_iterator it = boneNameToIndex.begin();it != boneNameToIndex.end();it++)
-	{
-		LPBone bone = new Bone();
-		bone->Name = it->first;
-
-		const aiNode* pNode =  FindNodeByName(pScene->mRootNode, it->first);
-		if (pNode != NULL)
-		{
-			bone->LocalBindPose = MatrixToD3D(pNode->mTransformation);
-
-			const aiNode* pParent = pNode->mParent;
-			while (pParent != NULL)
-			{
-				std::map<std::string, int>::const_iterator parentIt = boneNameToIndex.find(pParent->mName.C_Str());
-				if (parentIt != boneNameToIndex.end())
-				{
-					bone->ParentBoneIndex = parentIt->second;
-					break;
-				}
-				pParent = pParent->mParent;
-			}
-		}
-
-		std::map<std::string, MATRIX>::const_iterator offsetIt = boneOffsetByName.find(it->first);
-		if (offsetIt != boneOffsetByName.end())
-		{
-			bone->OffsetMatrix = offsetIt->second;
-		}
-
-		modelData->Bones[it->second] = bone;
-	}
-
-	LPBoneNode pRoot = BuildBoneHierarchy(pScene->mRootNode, boneNameToIndex, modelData);
-	if (pRoot != NULL)
-	{
-		modelData->BoneHierarchyRoot = *pRoot;
-		delete pRoot;
-	}
-}
-
-LPBoneNode FBXModel::BuildBoneHierarchy(const aiNode* pNode,const std::map<std::string, int>& boneNameToIndex,LPModelData modelData)
+void FBXModel::FetchNodeHierarchy(const aiNode* pNode, LPModelData modelData, int parentIndex)
 {
 	if (pNode == NULL)
 	{
-		return NULL;
+		return;
 	}
 
-	LPBoneNode pChildren = NULL;
-	for (unsigned int i = 0; i < pNode->mNumChildren; i++)
+	LPBone pChildren = new Bone();
+
+	UINT boneIndex = modelData->Bones.size();
+	modelData->BoneMaping[pNode->mName.C_Str()] = boneIndex;
+
+	pChildren->Name = pNode->mName.C_Str();
+	pChildren->ParentIndex = parentIndex;
+	pChildren->NodeTransformation = AssimpToMatrix(pNode->mTransformation);
+
+	modelData->Bones.push_back(pChildren);
+
+	for (size_t i = 0; i < pNode->mNumChildren; i++)
 	{
-		pChildren = AppendBoneNodeChain(pChildren, BuildBoneHierarchy(pNode->mChildren[i], boneNameToIndex, modelData));
+		FetchNodeHierarchy(pNode->mChildren[i], modelData, boneIndex);
 	}
-
-	std::map<std::string, int>::const_iterator it = boneNameToIndex.find(pNode->mName.C_Str());
-	if (it == boneNameToIndex.end())
-	{
-		return pChildren;
-	}
-
-	LPBoneNode pCurrent = new BoneNode();
-	pCurrent->pBone = modelData->Bones[it->second];
-	pCurrent->pFrameFirstChild = pChildren;
-	return pCurrent;
 }
 
-void FBXModel::FetchAnimations(const aiScene* pScene,LPModelData modelData,const std::map<std::string, int>& boneNameToIndex)
+void FBXModel::FetchAnimations(const aiScene* pScene, LPModelData modelData)
 {
 	modelData->Animations.clear();
 
@@ -580,7 +450,7 @@ void FBXModel::FetchAnimations(const aiScene* pScene,LPModelData modelData,const
 
 	for (unsigned int i = 0; i < pScene->mNumAnimations; i++)
 	{
-		LPAnimationClip pClip = FetchAnimation(pScene->mAnimations[i], pScene, boneNameToIndex);
+		LPAnimationClip pClip = FetchAnimation(pScene->mAnimations[i], pScene);
 		if (pClip != NULL)
 		{
 			modelData->Animations.push_back(pClip);
@@ -588,7 +458,7 @@ void FBXModel::FetchAnimations(const aiScene* pScene,LPModelData modelData,const
 	}
 }
 
-LPAnimationClip FBXModel::FetchAnimation(const aiAnimation* pAnimation,const aiScene* pScene,const std::map<std::string, int>& boneNameToIndex)
+LPAnimationClip FBXModel::FetchAnimation(const aiAnimation* pAnimation, const aiScene* pScene)
 {
 	if (pAnimation == NULL)
 	{
@@ -599,7 +469,8 @@ LPAnimationClip FBXModel::FetchAnimation(const aiAnimation* pAnimation,const aiS
 
 	LPAnimationClip pClip = new AnimationClip();
 	pClip->Name = pAnimation->mName.C_Str();
-	pClip->duration = static_cast<float>(pAnimation->mDuration / ticksPerSecond);
+	pClip->duration = pAnimation->mDuration;
+	pClip->ticksPerSecond = ticksPerSecond;
 
 	for (unsigned int i = 0; i < pAnimation->mNumChannels; i++)
 	{
@@ -671,7 +542,7 @@ LPAnimationClip FBXModel::FetchAnimation(const aiAnimation* pAnimation,const aiS
 		}
 
 		std::vector<LPAnimationKeyFrame> keyFrames;
-		for (std::map<double, LPAnimationKeyFrame>::iterator it = keyFramesMap.begin();it != keyFramesMap.end();it++)
+		for (std::map<double, LPAnimationKeyFrame>::iterator it = keyFramesMap.begin(); it != keyFramesMap.end(); it++)
 		{
 			keyFrames.push_back(it->second);
 		}

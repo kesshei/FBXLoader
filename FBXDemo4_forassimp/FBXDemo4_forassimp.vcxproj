@@ -129,16 +129,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AnimationRuntime.cpp" />
     <ClCompile Include="FBXModel.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="VertexPoseSampler.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AnimationRuntime.h" />
     <ClInclude Include="FBXModel.h" />
     <ClInclude Include="ModelData.h" />
-    <ClInclude Include="VertexPoseSampler.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

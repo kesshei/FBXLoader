@@ -168,11 +168,12 @@ typedef struct _AnimationKeyFrame
 typedef struct _AnimationClip
 {
 	std::string Name;
-	float duration;             // 动画总时长（秒）
+	double duration;             // 动画总时长（秒）
+	double ticksPerSecond;       // 每秒钟的动画刻度数（用于时间转换）
 	std::map<std::string, std::vector<LPAnimationKeyFrame>> boneKeyFrames; // 骨骼索引→关键帧列表
 
 	_AnimationClip()
-		: Name(""), duration(0.0f){
+		: Name(""), duration(0.0f), ticksPerSecond(0.0f) {
 	}
 }AnimationClip, * LPAnimationClip;
 
@@ -180,29 +181,18 @@ typedef struct _AnimationClip
 typedef struct _Bone
 {
 	std::string Name;
-	int    ParentBoneIndex;
-	MATRIX LocalBindPose;
-	MATRIX OffsetMatrix;
+	int    ParentIndex;
+	MATRIX NodeTransformation;
+	MATRIX BoneOffsetMatrix;
 
 	_Bone() 
 		: Name(""),
-		ParentBoneIndex(-1),
-		LocalBindPose(),
-		OffsetMatrix() 
+		ParentIndex(-1),
+		NodeTransformation(),
+		BoneOffsetMatrix()
 	{
 	}
 }Bone, * LPBone;
-
-typedef struct _BoneNode
-{
-	LPBone pBone;
-	struct _BoneNode* pFrameSibling;
-	struct _BoneNode* pFrameFirstChild;
-
-	_BoneNode()
-		: pBone(NULL), pFrameSibling(NULL), pFrameFirstChild(NULL) {
-	}
-}BoneNode, * LPBoneNode;
 
 //模型数据结构，包含骨骼、动画和网格等信息
 typedef struct _ModelData
@@ -212,11 +202,11 @@ typedef struct _ModelData
 	std::vector<LPMESH>  Meshs;              // 网格（带蒙皮信息） 默认至少一个网格对象
 
 	std::vector<LPBone> Bones;               // 骨骼列表 默认一个骨骼对象
-	BoneNode BoneHierarchyRoot;              // 骨骼层次结构根节点
+	std::map<std::string, int> BoneMaping;//骨骼名称到索引的映射，方便在动画中快速查找骨骼索引
 
 	std::vector<LPAnimationClip> Animations; // 动画列表 默认一个动画对象
 	_ModelData()
-		: BoneHierarchyRoot() {
+		: Materials(), Meshs(), Bones(), Animations(), BoneMaping() {
 	}
 }ModelData, * LPModelData;
 
